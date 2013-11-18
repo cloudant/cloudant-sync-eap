@@ -1,0 +1,26 @@
+
+html, body {
+    background: #eee;
+}
+
+.main-body {
+    width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 20px;
+    margin-top: 120px;
+
+    font-family: "Source Code Pro", "Menlo", "Consolas", monospace;
+    font-size: 16px;
+
+    border: 1px solid #CCC;
+    border-radius: 10px;
+
+    background: white;
+}
+
+h1 {
+    font-weight: bold;
+    font-size: 24px;
+}
