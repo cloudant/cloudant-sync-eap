@@ -6,17 +6,21 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 import android.app.Activity;
+import android.app.ListActivity;
 import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
+import android.view.View;
+import android.widget.EditText;
 
 import com.cloudant.sync.datastore.Datastore;
 import com.cloudant.sync.datastore.DatastoreManager;
 import com.cloudant.sync.replication.Replicator;
 import com.cloudant.sync.replication.ReplicatorFactory;
+import com.google.common.base.Strings;
 
-public class TodoActivity extends Activity {
+public class TodoActivity extends ListActivity {
 	
 	static final String LOG_TAG = "TodoActivity";
 	
@@ -29,14 +33,21 @@ public class TodoActivity extends Activity {
     static final String TASKS_DATASTORE_NAME = "tasks";
 	
     private Tasks mTasks; 
+    private TaskAdapter mTaskAdapter;
     private Replicator mPushReplicator;
     private Replicator mPullReplicator;
-
+    
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_todo);
 		this.initDatastore();
+		
+		this.initDatastore();
+		List<Task> tasks = this.mTasks.allDocuments();
+		Log.d(LOG_TAG, tasks.toString());
+		this.mTaskAdapter = new TaskAdapter(this, tasks);
+		this.setListAdapter(this.mTaskAdapter);
 	}
 
 	@Override

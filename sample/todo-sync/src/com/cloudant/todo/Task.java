@@ -6,7 +6,7 @@ public class Task extends Document {
 	
 	public Task() {}
 	
-	static final String DOC_TYPE = "com.cloudant.todo.task";
+	static final String DOC_TYPE = "com.cloudant.sync.example.task";
 	private String type = DOC_TYPE;
 	public String getType() {
 		return type;
