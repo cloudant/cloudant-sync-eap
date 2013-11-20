@@ -11,6 +11,8 @@ import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -24,12 +26,15 @@ import android.widget.Toast;
 
 import com.cloudant.sync.datastore.Datastore;
 import com.cloudant.sync.datastore.DatastoreManager;
+import com.cloudant.sync.replication.ErrorInfo;
+import com.cloudant.sync.replication.ReplicationListener;
 import com.cloudant.sync.replication.Replicator;
 import com.cloudant.sync.replication.ReplicatorFactory;
-import com.google.common.base.Strings;
 
-public class TodoActivity extends ListActivity {
+public class TodoActivity extends ListActivity implements ReplicationListener {
 	
+	private static final int DIALOG_PROGRESS = 2;
+
 	private static final int DIALOG_NEW_TASK = 1;
 
 	static final String LOG_TAG = "TodoActivity";
@@ -46,6 +51,7 @@ public class TodoActivity extends ListActivity {
     private TaskAdapter mTaskAdapter;
     private Replicator mPushReplicator;
     private Replicator mPullReplicator;
+    private Handler mHandler;
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -54,9 +60,9 @@ public class TodoActivity extends ListActivity {
 		this.initDatastore();
 		
 		List<Task> tasks = this.mTasks.allDocuments();
-		Log.d(LOG_TAG, tasks.toString());
 		this.mTaskAdapter = new TaskAdapter(this, tasks);
 		this.setListAdapter(this.mTaskAdapter);
+		mHandler = new Handler(Looper.getMainLooper());
 	}
 
 	@Override
@@ -73,6 +79,12 @@ public class TodoActivity extends ListActivity {
 	        case R.id.action_new:
 	        	this.showDialog(DIALOG_NEW_TASK);
 	            return true;
+	        case R.id.action_download:
+	        	download();
+	        	return true;
+	        case R.id.action_upload:
+	        	upload();
+	        	return true;
 	        case R.id.action_settings:
 	            return true;
 	        default:
@@ -84,9 +96,26 @@ public class TodoActivity extends ListActivity {
 	protected Dialog onCreateDialog(int id, Bundle args) {
 		if(id == DIALOG_NEW_TASK) {
 		    return createNewTaskDialog();
+		} else if ( id == DIALOG_PROGRESS ) {
+			return createProgressDialoag();
 		} else {
 			throw new RuntimeException("No dialog defined for id: " + id);
 		}
+	}
+	
+	public Dialog createProgressDialoag() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		LayoutInflater inflater = this.getLayoutInflater();
+		final View v = inflater.inflate(R.layout.dialog_loading, null);
+		builder.setView(v)
+		    .setNegativeButton("Stop", new DialogInterface.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					stopReplication();
+				}
+			});
+		
+		return builder.create();
 	}
 	
 	public Dialog createNewTaskDialog() {
@@ -163,6 +192,9 @@ public class TodoActivity extends ListActivity {
 			URI uri = this.createServerURI();
 			mPushReplicator = ReplicatorFactory.oneway(ds, uri);
 			mPullReplicator = ReplicatorFactory.oneway(uri, ds);
+			
+			mPushReplicator.setListener(this);
+			mPullReplicator.setListener(this);
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		} 
@@ -171,11 +203,8 @@ public class TodoActivity extends ListActivity {
 		
 		List<Task> allTasks = mTasks.allDocuments();
 		Log.d(LOG_TAG, allTasks.toString());
-        
-        mPushReplicator.start();
-        mPullReplicator.start();
 	}
-
+	
 	private URI createServerURI() throws URISyntaxException {
 		return new URI("https", 
 				CLOUDANT_API_KEY + ":" + CLOUDANT_API_SECRET, 
@@ -189,5 +218,88 @@ public class TodoActivity extends ListActivity {
 	public void createNewTask(String desc) {
 		Task t = new Task(desc);
 		mTaskAdapter.add(mTasks.createDocument(t));
+	}
+
+	@Override
+	public void complete(Replicator replicator) {
+		mHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				replicationComplete();
+			}
+		});
+	}
+
+	@Override
+	public void error(Replicator replicator, final ErrorInfo error) {
+		mHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				replicationError(error);
+			}
+		});
+	}
+	
+	@Override
+	public void onBackPressed() {
+		if(isReplicatorRunning(mPullReplicator)) {
+			Toast toast = Toast
+					.makeText(getApplicationContext(),
+							"Download replicator is running",
+							Toast.LENGTH_LONG);
+			toast.show();
+			return;
+		} else if(isReplicatorRunning(mPushReplicator)) {
+			Toast toast = Toast
+					.makeText(getApplicationContext(),
+							"Upload replicator is running",
+							Toast.LENGTH_LONG);
+			toast.show();
+			return;
+		} else {
+			super.onBackPressed();
+		}
+	}
+	
+	boolean isReplicatorRunning(Replicator replicator) {
+		return replicator.getState() == Replicator.State.STARTED ||
+				replicator.getState() == Replicator.State.STOPPING;
+	}
+	
+	void replicationComplete() {
+		Toast toast = Toast
+				.makeText(getApplicationContext(),
+						"Replication completed",
+						Toast.LENGTH_LONG);
+		toast.show();
+		this.dismissDialog(DIALOG_PROGRESS);
+		mTaskAdapter.notifyDataSetChanged();
+	}
+	
+	void replicationError(ErrorInfo error) {
+		Toast toast = Toast
+				.makeText(getApplicationContext(),
+						"Replication error: " + error.toString(),
+						Toast.LENGTH_LONG);
+		toast.show();
+		this.dismissDialog(DIALOG_PROGRESS);
+		mTaskAdapter.notifyDataSetChanged();
+	}
+	
+	void stopReplication() {
+		mPullReplicator.stop();
+		mPushReplicator.stop();
+		this.dismissDialog(DIALOG_PROGRESS);
+		mTaskAdapter.notifyDataSetChanged();
+	}
+	
+	void download() {
+		this.showDialog(DIALOG_PROGRESS);
+		mPullReplicator.start();
+	}
+	
+	void upload() {
+		this.showDialog(DIALOG_PROGRESS);
+		mPushReplicator.start();
 	}
 }
