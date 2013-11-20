@@ -24,6 +24,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.cloudant.sync.datastore.ConflictException;
 import com.cloudant.sync.datastore.Datastore;
 import com.cloudant.sync.datastore.DatastoreManager;
 import com.cloudant.sync.replication.ErrorInfo;
@@ -246,6 +247,18 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 			return;
 		} else {
 			super.onBackPressed();
+		}
+	}
+	
+	public void onCompleteCheckboxClicked(View view) {
+		try {
+			int position = view.getId();
+			Task t = (Task) mTaskAdapter.getItem(position);
+			t.setCompleted(!t.isCompleted());
+			t = mTasks.updateDocument(t);
+			mTaskAdapter.set(position, t);
+		} catch (ConflictException e) {
+			throw new RuntimeException(e);
 		}
 	}
 

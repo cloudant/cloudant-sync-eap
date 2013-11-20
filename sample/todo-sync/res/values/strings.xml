@@ -11,5 +11,6 @@
     <string name="new_task">New Task</string>
     <string name="enter_description">Enter task description</string>
     <string name="task_not_created">Task not created because descript is empty</string>
+    <string name="completed">COMPLETED</string>
     
 </resources>

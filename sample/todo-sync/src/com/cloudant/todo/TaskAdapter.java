@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Adapter;
 import android.widget.BaseAdapter;
+import android.widget.CheckBox;
 import android.widget.ListAdapter;
 import android.widget.TextView;
 
@@ -55,11 +56,12 @@ public class TaskAdapter extends BaseAdapter implements ListAdapter {
 		}
 		
 		TextView desc = (TextView) convertView.findViewById(R.id.task_description);
-		TextView completed = (TextView) convertView.findViewById(R.id.task_completed);
+		CheckBox completed = (CheckBox) convertView.findViewById(R.id.checkbox_completed);
 		
 		Task t = this.tasks.get(position);
 		desc.setText(t.getDescription());
-		completed.setText(String.valueOf(t.isCompleted()));
+		completed.setChecked(t.isCompleted());
+		completed.setId(position);
 		
 		return convertView;
 	}
@@ -99,6 +101,11 @@ public class TaskAdapter extends BaseAdapter implements ListAdapter {
 	
 	public void add(Task t) {
 		this.tasks.add(t);
+		this.notifyDataSetChanged();
+	}
+	
+	public void set(int position, Task t) {
+		this.tasks.set(position, t);
 		this.notifyDataSetChanged();
 	}
 }
