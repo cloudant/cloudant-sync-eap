@@ -16,6 +16,7 @@ import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -113,6 +114,17 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						stopReplication();
+					}
+				})
+				.setOnKeyListener(new DialogInterface.OnKeyListener() {
+					@Override
+					public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+						if(keyCode == KeyEvent.KEYCODE_BACK) {
+							Toast.makeText(getApplicationContext(),
+									R.string.replication_running, Toast.LENGTH_LONG).show();
+							return true;
+						}
+						return false;
 					}
 				});
 
@@ -234,21 +246,6 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 			}
 		});
 	}
-
-	@Override
-	public void onBackPressed() {
-		if (isReplicatorRunning(mPullReplicator)) {
-			Toast.makeText(getApplicationContext(),
-					"Download replicator is running", Toast.LENGTH_LONG).show();
-			return;
-		} else if (isReplicatorRunning(mPushReplicator)) {
-			Toast.makeText(getApplicationContext(),
-					"Upload replicator is running", Toast.LENGTH_LONG).show();
-			return;
-		} else {
-			super.onBackPressed();
-		}
-	}
 	
 	public void onCompleteCheckboxClicked(View view) {
 		try {
@@ -268,15 +265,16 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 	}
 
 	void replicationComplete() {
-		Toast.makeText(getApplicationContext(), "Replication completed",
+		Toast.makeText(getApplicationContext(), R.string.replication_completed,
 				Toast.LENGTH_LONG).show();
 		this.dismissDialog(DIALOG_PROGRESS);
 		mTaskAdapter.notifyDataSetChanged();
 	}
 
 	void replicationError(ErrorInfo error) {
+		Log.e(LOG_TAG, "Replication error:", error.getException());
 		Toast.makeText(getApplicationContext(),
-				"Replication error: " + error.toString(), Toast.LENGTH_LONG)
+				R.string.replication_error, Toast.LENGTH_LONG)
 				.show();
 		this.dismissDialog(DIALOG_PROGRESS);
 		mTaskAdapter.notifyDataSetChanged();
