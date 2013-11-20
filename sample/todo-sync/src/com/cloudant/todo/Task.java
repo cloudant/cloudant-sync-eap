@@ -4,7 +4,13 @@ import com.cloudant.sync.util.Document;
 
 public class Task extends Document {
 	
+	// Default constructor is required for Document subclasses
 	public Task() {}
+	
+	public Task(String desc) {
+		this.setDescription(desc);
+		this.setCompleted(false);
+	}
 	
 	static final String DOC_TYPE = "com.cloudant.sync.example.task";
 	private String type = DOC_TYPE;
