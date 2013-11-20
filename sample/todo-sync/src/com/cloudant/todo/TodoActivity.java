@@ -10,9 +10,13 @@ import android.app.Dialog;
 import android.app.ListActivity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -33,7 +37,8 @@ import com.cloudant.sync.replication.ReplicationListener;
 import com.cloudant.sync.replication.Replicator;
 import com.cloudant.sync.replication.ReplicatorFactory;
 
-public class TodoActivity extends ListActivity implements ReplicationListener {
+public class TodoActivity extends ListActivity 
+	implements ReplicationListener, OnSharedPreferenceChangeListener {
 
 	private static final int DIALOG_PROGRESS = 2;
 
@@ -41,10 +46,10 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 
 	static final String LOG_TAG = "TodoActivity";
 
-	static final String CLOUDANT_HOST = "demomobile2012.cloudant.com";
-	static final String CLOUDANT_DB = "example_app_todo";
-	static final String CLOUDANT_API_KEY = "demomobile2012";
-	public static final String CLOUDANT_API_SECRET = "b5GP6soyxkCw";
+	static final String SETTINGS_CLOUDANT_USER = "pref_key_username";
+	static final String SETTINGS_CLOUDANT_DB = "pref_key_dbname";
+	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
+	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_secret";
 
 	static final String DATASTORE_MANGER_DIR = "data";
 	static final String TASKS_DATASTORE_NAME = "tasks";
@@ -54,17 +59,32 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 	private Replicator mPushReplicator;
 	private Replicator mPullReplicator;
 	private Handler mHandler;
+	
+	DatastoreManager mManager;
+	Datastore mDatastore;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.d(LOG_TAG, "onCreate()");
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_todo);
+		
+		// set the default settings
+		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+		
+		// register to listen to the setting changes because replicators
+		// uses information managed by shared preference
+		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+		sharedPref.registerOnSharedPreferenceChangeListener(this);
+		
 		this.initDatastore();
+		this.initReplicators();
+		
+		this.mHandler = new Handler(Looper.getMainLooper());
 
 		List<Task> tasks = this.mTasks.allDocuments();
 		this.mTaskAdapter = new TaskAdapter(this, tasks);
 		this.setListAdapter(this.mTaskAdapter);
-		mHandler = new Handler(Looper.getMainLooper());
 	}
 
 	@Override
@@ -88,10 +108,15 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 			upload();
 			return true;
 		case R.id.action_settings:
+			this.showSettings();
 			return true;
 		default:
 			return super.onOptionsItemSelected(item);
 		}
+	}
+
+	void showSettings() {
+		this.startActivity(new Intent().setClass(this, SettingsActivity.class));
 	}
 
 	@Override
@@ -197,29 +222,34 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 	public void initDatastore() {
 		File path = getApplicationContext().getDir(DATASTORE_MANGER_DIR,
 				Context.MODE_PRIVATE);
-		DatastoreManager manager = new DatastoreManager(path.getAbsolutePath());
-		Datastore ds = manager.openDatastore(TASKS_DATASTORE_NAME);
-
+		this.mManager = new DatastoreManager(path.getAbsolutePath());
+		this.mDatastore = mManager.openDatastore(TASKS_DATASTORE_NAME);
+		this.mTasks = new Tasks(mDatastore);
+	}
+	
+	public void initReplicators() {
 		try {
 			URI uri = this.createServerURI();
-			mPushReplicator = ReplicatorFactory.oneway(ds, uri);
-			mPullReplicator = ReplicatorFactory.oneway(uri, ds);
+			Log.d(LOG_TAG, "uri:" + uri.toString());
+			mPushReplicator = ReplicatorFactory.oneway(mDatastore, uri);
+			mPullReplicator = ReplicatorFactory.oneway(uri, mDatastore);
 
 			mPushReplicator.setListener(this);
 			mPullReplicator.setListener(this);
 		} catch (URISyntaxException e) {
 			throw new RuntimeException(e);
 		}
-
-		mTasks = new Tasks(ds);
-
-		List<Task> allTasks = mTasks.allDocuments();
-		Log.d(LOG_TAG, allTasks.toString());
 	}
 
 	private URI createServerURI() throws URISyntaxException {
-		return new URI("https", CLOUDANT_API_KEY + ":" + CLOUDANT_API_SECRET,
-				CLOUDANT_HOST, 443, "/" + CLOUDANT_DB, null, null);
+		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+		String username = sharedPref.getString(SETTINGS_CLOUDANT_USER, "");
+		String dbname = sharedPref.getString(SETTINGS_CLOUDANT_DB, "");
+		String apiKey = sharedPref.getString(SETTINGS_CLOUDANT_API_KEY, "");
+		String apiSecret = sharedPref.getString(SETTINGS_CLOUDANT_API_SECRET, "");
+		String host = username + ".cloudant.com";
+		
+		return new URI("https", apiKey + ":" + apiSecret, host, 443, "/" + dbname, null, null);
 	}
 
 	public void createNewTask(String desc) {
@@ -295,5 +325,12 @@ public class TodoActivity extends ListActivity implements ReplicationListener {
 	void upload() {
 		this.showDialog(DIALOG_PROGRESS);
 		mPushReplicator.start();
+	}
+
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
+			String key) {
+		Log.d(LOG_TAG, "onSharedPreferenceChanged()");
+		this.initReplicators();
 	}
 }
