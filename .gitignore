@@ -12,3 +12,4 @@ build
 out
 local.gradle
 sample/todo-sync/gen
+sample/todo-sync/bin
