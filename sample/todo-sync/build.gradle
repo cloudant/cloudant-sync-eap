@@ -15,6 +15,7 @@ repositories {
 }
 
 dependencies {
+    compile(group: 'com.cloudant', name: 'mazha', version:'0.1-SNAPSHOT') 
     compile(group: 'com.cloudant', name: 'cloudant-sync-datastore-android', version:'0.1-SNAPSHOT')
 }
 
