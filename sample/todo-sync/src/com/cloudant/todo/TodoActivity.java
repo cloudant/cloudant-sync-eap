@@ -20,13 +20,16 @@ import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.ActionMode;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.cloudant.sync.datastore.ConflictException;
@@ -85,9 +88,22 @@ public class TodoActivity extends ListActivity
 		List<Task> tasks = this.mTasks.allDocuments();
 		this.mTaskAdapter = new TaskAdapter(this, tasks);
 		this.setListAdapter(this.mTaskAdapter);
-	}
 
-	@Override
+        this.getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+    }
+
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        if(mActionMode != null) {
+            mActionMode.finish();
+        }
+
+        // Make the newly clicked item the currently selected one.
+        this.getListView().setItemChecked(position, true);
+        mActionMode = this.startActionMode(mActionModeCallback);
+    }
+
+    @Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.todo, menu);
@@ -257,6 +273,19 @@ public class TodoActivity extends ListActivity
 		mTaskAdapter.add(mTasks.createDocument(t));
 	}
 
+    void deleteTaskAt(int position) {
+        try {
+            Task t = (Task) mTaskAdapter.getItem(position);
+            mTasks.deleteDocument(t);
+            mTaskAdapter.remove(position);
+            Toast.makeText(TodoActivity.this,
+                    "Deleted item : " + t.getDescription(),
+                    Toast.LENGTH_SHORT).show();
+        } catch (ConflictException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 	@Override
 	public void complete(Replicator replicator) {
 		mHandler.post(new Runnable() {
@@ -287,11 +316,6 @@ public class TodoActivity extends ListActivity
 		} catch (ConflictException e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	boolean isReplicatorRunning(Replicator replicator) {
-		return replicator.getState() == Replicator.State.STARTED
-				|| replicator.getState() == Replicator.State.STOPPING;
 	}
 
 	void replicationComplete() {
@@ -333,4 +357,38 @@ public class TodoActivity extends ListActivity
 		Log.d(LOG_TAG, "onSharedPreferenceChanged()");
 		this.initReplicators();
 	}
+
+    ActionMode mActionMode = null;
+    private ActionMode.Callback mActionModeCallback = new ActionMode.Callback() {
+
+        @Override
+        public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            MenuInflater inflater = mode.getMenuInflater();
+            inflater.inflate(R.menu.context_menu, menu);
+            return true;
+        }
+
+        @Override
+        public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            return false;
+        }
+
+        @Override
+        public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            switch (item.getItemId()) {
+                case R.id.action_delete:
+                    deleteTaskAt(getListView().getCheckedItemPosition());
+                    mode.finish();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        @Override
+        public void onDestroyActionMode(ActionMode mode) {
+            getListView().setItemChecked(getListView().getCheckedItemPosition(), false);
+            mActionMode = null;
+        }
+    };
 }

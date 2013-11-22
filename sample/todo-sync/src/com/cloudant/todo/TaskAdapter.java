@@ -108,4 +108,11 @@ public class TaskAdapter extends BaseAdapter implements ListAdapter {
 		this.tasks.set(position, t);
 		this.notifyDataSetChanged();
 	}
+
+    /**
+     * Remove the task at specified position
+     */
+    public void remove(int position) {
+        this.tasks.remove(position);
+    }
 }
