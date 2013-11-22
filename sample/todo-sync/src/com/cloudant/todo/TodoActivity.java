@@ -49,7 +49,7 @@ public class TodoActivity extends ListActivity
 	static final String SETTINGS_CLOUDANT_USER = "pref_key_username";
 	static final String SETTINGS_CLOUDANT_DB = "pref_key_dbname";
 	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
-	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_secret";
+	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_password";
 
 	static final String DATASTORE_MANGER_DIR = "data";
 	static final String TASKS_DATASTORE_NAME = "tasks";
