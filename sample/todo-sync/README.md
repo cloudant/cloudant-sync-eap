@@ -1,4 +1,4 @@
-## Exanoke app: Todo Sync
+## Example app: Todo Sync
 
 ### Preparation
 
