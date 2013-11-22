@@ -13,3 +13,4 @@ out
 local.gradle
 sample/todo-sync/gen
 sample/todo-sync/bin
+sample/todo-sync/.idea
