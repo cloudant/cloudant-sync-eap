@@ -98,19 +98,25 @@ public class TaskAdapter extends BaseAdapter implements ListAdapter {
 	public boolean isEnabled(int position) {
 		return true;
 	}
-	
+
+    /**
+     * Add the given Task at the end of the list
+     */
 	public void add(Task t) {
 		this.tasks.add(t);
 		this.notifyDataSetChanged();
 	}
-	
+
+    /**
+     * Put the give Task at specified position
+     */
 	public void set(int position, Task t) {
 		this.tasks.set(position, t);
 		this.notifyDataSetChanged();
 	}
 
     /**
-     * Remove the task at specified position
+     * Remove the Task at specified position
      */
     public void remove(int position) {
         this.tasks.remove(position);

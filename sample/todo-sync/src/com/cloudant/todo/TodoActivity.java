@@ -22,9 +22,7 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.ActionMode;
 import android.view.KeyEvent;
-import android.view.LayoutInflater;
 import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -43,11 +41,10 @@ import com.cloudant.sync.replication.ReplicatorFactory;
 public class TodoActivity extends ListActivity 
 	implements ReplicationListener, OnSharedPreferenceChangeListener {
 
+    static final String LOG_TAG = "TodoActivity";
+
+    private static final int DIALOG_NEW_TASK = 1;
 	private static final int DIALOG_PROGRESS = 2;
-
-	private static final int DIALOG_NEW_TASK = 1;
-
-	static final String LOG_TAG = "TodoActivity";
 
 	static final String SETTINGS_CLOUDANT_USER = "pref_key_username";
 	static final String SETTINGS_CLOUDANT_DB = "pref_key_dbname";
@@ -59,12 +56,10 @@ public class TodoActivity extends ListActivity
 
 	private Tasks mTasks;
 	private TaskAdapter mTaskAdapter;
+    private Datastore mDatastore;
 	private Replicator mPushReplicator;
 	private Replicator mPullReplicator;
 	private Handler mHandler;
-	
-	DatastoreManager mManager;
-	Datastore mDatastore;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -88,8 +83,6 @@ public class TodoActivity extends ListActivity
 		List<Task> tasks = this.mTasks.allDocuments();
 		this.mTaskAdapter = new TaskAdapter(this, tasks);
 		this.setListAdapter(this.mTaskAdapter);
-
-        this.getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
     }
 
     @Override
@@ -148,8 +141,7 @@ public class TodoActivity extends ListActivity
 
 	public Dialog createProgressDialog() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		LayoutInflater inflater = this.getLayoutInflater();
-		final View v = inflater.inflate(R.layout.dialog_loading, null);
+		final View v = this.getLayoutInflater().inflate(R.layout.dialog_loading, null);
 		builder.setView(v).setNegativeButton("Stop",
 				new DialogInterface.OnClickListener() {
 					@Override
@@ -174,9 +166,7 @@ public class TodoActivity extends ListActivity
 
 	public Dialog createNewTaskDialog() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		LayoutInflater inflater = this.getLayoutInflater();
-
-		final View v = inflater.inflate(R.layout.dialog_new_task, null);
+		final View v = this.getLayoutInflater().inflate(R.layout.dialog_new_task, null);
 		final EditText description = (EditText) v
 				.findViewById(R.id.new_task_desc);
 
@@ -194,8 +184,8 @@ public class TodoActivity extends ListActivity
 									// Tell user the task is not created because
 									// description is required
 									Toast.makeText(getApplicationContext(),
-											R.string.task_not_created,
-											Toast.LENGTH_LONG).show();
+                                            R.string.task_not_created,
+                                            Toast.LENGTH_LONG).show();
 								}
 							}
 						})
@@ -238,8 +228,8 @@ public class TodoActivity extends ListActivity
 	public void initDatastore() {
 		File path = getApplicationContext().getDir(DATASTORE_MANGER_DIR,
 				Context.MODE_PRIVATE);
-		this.mManager = new DatastoreManager(path.getAbsolutePath());
-		this.mDatastore = mManager.openDatastore(TASKS_DATASTORE_NAME);
+		DatastoreManager manager = new DatastoreManager(path.getAbsolutePath());
+		this.mDatastore = manager.openDatastore(TASKS_DATASTORE_NAME);
 		this.mTasks = new Tasks(mDatastore);
 	}
 	
@@ -260,20 +250,31 @@ public class TodoActivity extends ListActivity
 	private URI createServerURI() throws URISyntaxException {
 		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
 		String username = sharedPref.getString(SETTINGS_CLOUDANT_USER, "");
-		String dbname = sharedPref.getString(SETTINGS_CLOUDANT_DB, "");
+		String dbName = sharedPref.getString(SETTINGS_CLOUDANT_DB, "");
 		String apiKey = sharedPref.getString(SETTINGS_CLOUDANT_API_KEY, "");
 		String apiSecret = sharedPref.getString(SETTINGS_CLOUDANT_API_SECRET, "");
 		String host = username + ".cloudant.com";
 		
-		return new URI("https", apiKey + ":" + apiSecret, host, 443, "/" + dbname, null, null);
+		return new URI("https", apiKey + ":" + apiSecret, host, 443, "/" + dbName, null, null);
 	}
 
-	public void createNewTask(String desc) {
+    private void createNewTask(String desc) {
 		Task t = new Task(desc);
 		mTaskAdapter.add(mTasks.createDocument(t));
 	}
 
-    void deleteTaskAt(int position) {
+    private void toggleTaskCompleteAt(int position) {
+        try {
+            Task t = (Task) mTaskAdapter.getItem(position);
+            t.setCompleted(!t.isCompleted());
+            t = mTasks.updateDocument(t);
+            mTaskAdapter.set(position, t);
+        } catch (ConflictException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void deleteTaskAt(int position) {
         try {
             Task t = (Task) mTaskAdapter.getItem(position);
             mTasks.deleteDocument(t);
@@ -307,18 +308,10 @@ public class TodoActivity extends ListActivity
 	}
 	
 	public void onCompleteCheckboxClicked(View view) {
-		try {
-			int position = view.getId();
-			Task t = (Task) mTaskAdapter.getItem(position);
-			t.setCompleted(!t.isCompleted());
-			t = mTasks.updateDocument(t);
-			mTaskAdapter.set(position, t);
-		} catch (ConflictException e) {
-			throw new RuntimeException(e);
-		}
-	}
+        this.toggleTaskCompleteAt(view.getId());
+    }
 
-	void replicationComplete() {
+    void replicationComplete() {
 		Toast.makeText(getApplicationContext(), R.string.replication_completed,
 				Toast.LENGTH_LONG).show();
 		this.dismissDialog(DIALOG_PROGRESS);
@@ -363,8 +356,7 @@ public class TodoActivity extends ListActivity
 
         @Override
         public boolean onCreateActionMode(ActionMode mode, Menu menu) {
-            MenuInflater inflater = mode.getMenuInflater();
-            inflater.inflate(R.menu.context_menu, menu);
+            mode.getMenuInflater().inflate(R.menu.context_menu, menu);
             return true;
         }
 
