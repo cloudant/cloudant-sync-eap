@@ -3,10 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp"
-    android:paddingLeft="8dp"
-    android:paddingRight="8dp" >
+    android:paddingLeft="?android:attr/listPreferredItemPaddingLeft"
+    android:paddingRight="?android:attr/listPreferredItemPaddingRight"
+    android:minHeight="?android:attr/listPreferredItemHeightSmall"
+    android:background="?android:attr/activatedBackgroundIndicator">
     
     <CheckBox android:id="@+id/checkbox_completed"
         android:layout_width="wrap_content"
@@ -19,6 +19,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:textAppearance="?android:attr/textAppearanceListItemSmall"/>
 
 </LinearLayout>
