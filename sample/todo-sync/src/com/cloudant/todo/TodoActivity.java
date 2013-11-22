@@ -124,13 +124,13 @@ public class TodoActivity extends ListActivity
 		if (id == DIALOG_NEW_TASK) {
 			return createNewTaskDialog();
 		} else if (id == DIALOG_PROGRESS) {
-			return createProgressDialoag();
+			return createProgressDialog();
 		} else {
 			throw new RuntimeException("No dialog defined for id: " + id);
 		}
 	}
 
-	public Dialog createProgressDialoag() {
+	public Dialog createProgressDialog() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		LayoutInflater inflater = this.getLayoutInflater();
 		final View v = inflater.inflate(R.layout.dialog_loading, null);
