@@ -2,11 +2,18 @@
 
 ### Preparation
 
-Gather the following information 1. your cloudant account username, 
-2. database you want the app to sync with 3. api key and 4. api 
-password, 
+Gather the following information:
 
-Find the file _res/values/strings.xml_, and fill the following default settings
+1. Your cloudant account username, 
+2. Database name the app to sync with
+3. API key 
+4. API password, 
+
+The database must exist in your cloudant account, otherwise the app will
+report error when it syncs. 
+
+Find the file _res/values/strings.xml_, and fill in the following default 
+settings using the information above.
     
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -20,7 +27,7 @@ Find the file _res/values/strings.xml_, and fill the following default settings
 </resources>
 ```
 
-Fill in your informaiton, and for example, this is what it should look like:
+For example, this is file might look like afterwards:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -36,4 +43,9 @@ Fill in your informaiton, and for example, this is what it should look like:
 
 ### Build
 
+Connect your android device, assume you have gradle installed, and 
+you can simple run this
+
     gradle installDebug
+
+The example app will be built and installed on your device. 
