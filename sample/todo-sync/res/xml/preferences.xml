@@ -17,7 +17,7 @@
         android:title="@string/pref_title_api_key" 
         android:defaultValue="@string/default_api_key" />
     <EditTextPreference
-        android:key="pref_key_api_secret"
+        android:key="pref_key_api_password"
         android:summary="@string/pref_summary_api_password"
         android:title="@string/pref_title_api_password"
         android:defaultValue="@string/default_api_password" />
