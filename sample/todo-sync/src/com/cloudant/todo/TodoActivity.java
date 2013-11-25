@@ -74,15 +74,18 @@ public class TodoActivity extends ListActivity
 		// uses information managed by shared preference
 		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
 		sharedPref.registerOnSharedPreferenceChangeListener(this);
-		
+
+        this.mHandler = new Handler(Looper.getMainLooper());
+
 		this.initDatastore();
 		this.initReplicators();
-		
-		this.mHandler = new Handler(Looper.getMainLooper());
+        this.initListAdapter();
+    }
 
-		List<Task> tasks = this.mTasks.allDocuments();
-		this.mTaskAdapter = new TaskAdapter(this, tasks);
-		this.setListAdapter(this.mTaskAdapter);
+    private void initListAdapter() {
+        List<Task> tasks = this.mTasks.allDocuments();
+        this.mTaskAdapter = new TaskAdapter(this, tasks);
+        this.setListAdapter(this.mTaskAdapter);
     }
 
     @Override
@@ -299,7 +302,8 @@ public class TodoActivity extends ListActivity
 
 	@Override
 	public void error(Replicator replicator, final ErrorInfo error) {
-		mHandler.post(new Runnable() {
+        Log.i(LOG_TAG, "error()");
+        mHandler.post(new Runnable() {
 			@Override
 			public void run() {
 				replicationError(error);
@@ -312,19 +316,19 @@ public class TodoActivity extends ListActivity
     }
 
     void replicationComplete() {
+        this.initListAdapter();
 		Toast.makeText(getApplicationContext(), R.string.replication_completed,
 				Toast.LENGTH_LONG).show();
 		this.dismissDialog(DIALOG_PROGRESS);
-		mTaskAdapter.notifyDataSetChanged();
 	}
 
 	void replicationError(ErrorInfo error) {
 		Log.e(LOG_TAG, "Replication error:", error.getException());
+        this.initListAdapter();
 		Toast.makeText(getApplicationContext(),
 				R.string.replication_error, Toast.LENGTH_LONG)
 				.show();
 		this.dismissDialog(DIALOG_PROGRESS);
-		mTaskAdapter.notifyDataSetChanged();
 	}
 
 	void stopReplication() {
