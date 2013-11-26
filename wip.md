@@ -1,19 +1,52 @@
 ---
+layout: default
 ---
 
-# Cloudant Sync - Android Datastore
+# Cloudant Sync - Early Access Program
 
-Cloudant Sync Datastore is an embedded document datastore for Android. It implements the CouchDB replication protocol for replicating local data to and from a remote CouchDB or Cloudant database. The datastore implements a native-code friendly API.
+Cloudant Sync is a CouchDB-replication-protocol-compatible datastore for
+devices that don't want or need to run a full CouchDB instance. It's built
+by [Cloudant](https://cloudant.com), building on the work of many others, and
+is available under the [Apache 2.0 licence][ap2].
+
+[ap2]: http://www.apache.org/licenses/LICENSE-2.0.txt
+
+## EAP - version 1.0
+
+The first part of the EAP is a basic datastore and replication engine for
+Android. The datastore implements a native-code friendly API.
+This API is differs from CouchDB's: we retain the
+[MVCC](http://en.wikipedia.org/wiki/Multiversion_concurrency_control)
+data model but not the HTTP-centric API.
 
 Documents within the datastore are heterogeneous JSON documents.
 
-The API is quite different from CouchDB's; we retain the [MVCC](http://en.wikipedia.org/wiki/Multiversion_concurrency_control) data model but not the HTTP-centric API.
+
+The library currently supports:
+
+* Creating, updating and deleting documents (CRUD).
+* Replication of data between a datastore managed by the library and remote
+  Cloudant or CouchDB databasees.
+
+We currently do not support, but plan to add support for:
+
+* Documents with attachments.
+* Indexing and query support. For now only retrieving documents by ID is
+  supported.
+
+## Support
+
+Get in contact with us via [support@cloudant.com](mailto:support@cloudant.com)
+if you have any problems. We'll try to update both the libraries and this page
+with updates to solve common issues.
 
 ## Using in your project
 
 Using the library in your project should be as simple as adding it as
-a dependency via maven or gradle. We've tested using gradle at this
-point.
+a dependency via [maven][maven] or [gradle][gradle].
+
+[maven]: http://maven.apache.org/
+[gradle]: http://www.gradle.org/
 
 ### Gradle
 
@@ -34,7 +67,7 @@ dependencies {
 
 ### Maven
 
-Note: syntax untested at time of writing.
+_Note: syntax untested at time of writing._
 
 It's a similar story in maven, add the repo and the dependency:
 
@@ -59,46 +92,51 @@ It's a similar story in maven, add the repo and the dependency:
       <version>0.1-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-      <groupId>group-a</groupId>
-      <artifactId>artifact-b</artifactId>
-      <version>1.0</version>
-      <type>bar</type>
-      <scope>runtime</scope>
-    </dependency>
   </dependencies>
+
 </project>
 ```
 
 ## Developer Guide
 
+Once you have the dependencies installed, the classes described below should
+all be available to your project.
+
 ### DatastoreManager and Datastore
 
-The `DatastoreManager` object manages a directory where `Datastore` objects store their data. It's a factory object for named `Datastore`s.
+The `DatastoreManager` object manages a directory where `Datastore` objects
+store their data. It's a factory object for named `Datastore` instances. A
+named datastore will persist its data between application runs. Names are
+arbitrary strings, with the restriction that the name must match
+`^[a-zA-Z]+[a-zA-Z0-9_]*`.
 
-Therefore, a developer starts by creating a `DatastoreManager` object bound to a directory:
+It's best to give a `DatastoreManager` a directory of its own, and to make the
+manager a singleton within an application. The content of the directory is
+simple folders and SQLite databases if you want to take a peek.
+
+Therefore, start by creating a `DatastoreManager` to manage datastores for
+a given directory:
 
 ```java
-File path = new File("~/data/");
-DatastoreManager manager = new DatastoreManager(path.getAbsolutePath());
+import com.cloudant.sync.datastore.DatastoreManager;
+import com.cloudant.sync.datastore.Datastore;
 
+// Create a DatastoreManager using application internal storage path
+File path = getApplicationContext().getDir("datastores");
+DatastoreManager helper = new DatastoreManager(path.getAbsolutePath());
+```
+
+Once you've a manager set up, it's straightforward to create datastores:
+
+```java
 Datastore ds = manager.openDatastore("my_datastore");
 Datastore ds2 = manager.openDatastore("other_datastore");
 ```
 
-On Android, it's very similar:
-
-```java
-// Create a DatastoreManager using application internal storage path
-File path = getApplicationContext().getFilesDir();
-DatastoreManager helper = new DatastoreManager(path.getAbsolutePath());
-```
-
-You should avoid manipulating the content of the directory managed by the `DatastoreManager` directly. The `DatastoreManager` for a given directory should be a singleton within your application too. Hopefully we'll fix this at a later stage.
-
 ### Document CRUD APIs
 
-Developer manipulates document through `Datastore` interface to create, update and delete `DBObject` instances:
+Once you have a `Datastore` instance, you can use it to create, update and
+delete documents.
 
 ```java
 Datastore ds = manager.openDatastore("my_datastore");
@@ -118,7 +156,8 @@ BasicDBObject rev2 = ds.updateDocument(rev.getId(), rev.getRevision(), body2);
 ds.deleteDocument(rev2.getId(), rev2.getRevision());
 ```
 
-The `getAllDocuments()` method allows iterating through all documents in the database:
+The `getAllDocuments()` method allows iterating through all documents in the
+database:
 
 ```java
 // read all documents in one go
@@ -128,11 +167,17 @@ List<DBObject> docs = ds.getAllDocuments(0, pageSize, true);
 
 ### Replication
 
-Replication is straight forward with Cloudant Sync. You can replicate from a local datastore to a remote database, from a remote database to a local datastore, or both ways to implement synchronisation.
+Replication is straight forward with Cloudant Sync. You can replicate from a
+local datastore to a remote database, from a remote database to a local
+datastore, or both ways to implement synchronisation.
 
-First we create a simple listener that just sets a CountDownLatch when the replication finishes so we can wait for a replication to finish without needing to poll:
+First we create a simple listener that just sets a CountDownLatch when the
+replication finishes so we can wait for a replication to finish without
+needing to poll:
 
 ```java
+import com.cloudant.sync.replication.ReplicationListener;
+
 /**
  * A {@code ReplicationListener} that sets a latch when it's told the
  * replication has finished.
@@ -162,13 +207,18 @@ private class Listener implements ReplicationListener {
 Next we replicate a local datastore to a remote database:
 
 ```java
-URI uri = "https://username.cloudant.com/my_database";
+import com.cloudant.sync.replication.ReplicationFactory;
+import com.cloudant.sync.replication.Replicator;
+
+// username/password can be Cloudant API keys
+URI uri = new URI("https://username:password@username.cloudant.com/my_database");
 Datastore ds = manager.openDatastore("my_datastore");
 
 // Create a replicator that replicates changes from the local
 // datastore to the remote database.
 Replicator replicator = ReplicatorFactory.oneway(ds, uri);
 
+// Use a CountDownLatch to provide a lightweight way to wait for completion
 latch = new CountDownLatch(1);
 Listener listener = new Listener(latch);
 replicator.setListener(listener);
@@ -183,10 +233,15 @@ if (replicator.getState() != Replicator.State.COMPLETE) {
 And getting data from a remote database to a local one:
 
 ```java
-// Create a replicator that replicates changes from the remote
-// database to the local datastore.
-replicator = ReplicatorFactory.oneway(url, ds);
+// username/password can be Cloudant API keys
+URI uri = new URI("https://username:password@username.cloudant.com/my_database");
+Datastore ds = manager.openDatastore("my_datastore");
 
+// Create a replictor that replicates changes from the remote
+// database to the local datastore.
+replicator = ReplicatorFactory.oneway(uri, ds);
+
+// Use a CountDownLatch to provide a lightweight way to wait for completion
 latch = new CountDownLatch(1);
 Listener listener = new Listener(latch);
 replicator.setListener(listener);
@@ -198,9 +253,45 @@ if (replicator.getState() != Replicator.State.COMPLETE) {
 }
 ```
 
+And running a full sync, that is, two one way replicaitons:
+
+```java
+// username/password can be Cloudant API keys
+URI uri = new URI("https://username:password@username.cloudant.com/my_database");
+Datastore ds = manager.openDatastore("my_datastore");
+
+replicator_pull = ReplicatorFactory.oneway(uri, ds);
+replicator_push = ReplicatorFactory.oneway(ds, uri);
+
+// Use a latch starting at 2 as we're waiting for two replications to finish
+latch = new CountDownLatch(2);
+Listener listener = new Listener(latch);
+
+// Set the listener and start for both pull and push replications
+replicator_pull.setListener(listener);
+replicator_pull.start();
+replicator_push.setListener(listener);
+replicator_push.start();
+
+// Wait for both replications to complete, decreasing the latch via listeners
+latch.await();
+
+// Unfortunately in this implementation we'll only record the last error
+// the listener saw
+if (replicator_pull.getState() != Replicator.State.COMPLETE) {
+    System.out.println("Error replicating FROM remote");
+    System.out.println(listener.error);
+}
+if (replicator_push.getState() != Replicator.State.COMPLETE) {
+    System.out.println("Error replicating FROM remote");
+    System.out.println(listener.error);
+}
+```
+
 ## Finding data
 
-At the moment, you can only retrieve a document using its ID. However, more sophisticated indexing and querying is on the way.
+At the moment, you can only retrieve a document using its ID. However, more
+sophisticated indexing and querying is on the way.
 
 
 
