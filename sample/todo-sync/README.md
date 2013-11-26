@@ -12,7 +12,7 @@ Gather the following information:
 The database must exist in your cloudant account, otherwise the app will
 report error when it syncs. 
 
-Find the file _res/values/strings.xml_, and fill in the following default 
+Find the file _res/values/settings.xml_, and fill in the following default 
 settings using the information above.
     
 ```xml
