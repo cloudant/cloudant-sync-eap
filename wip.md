@@ -38,6 +38,9 @@ We currently do not support, but plan to add support for:
 
 ## Support
 
+There is a [getting started][eap] guide. The javadocs for the Android library
+are hosted [here][jd].
+
 Get in contact with us via [support@cloudant.com](mailto:support@cloudant.com)
 if you have any problems. We'll try to update both the libraries and this page
 with updates to solve common issues.
