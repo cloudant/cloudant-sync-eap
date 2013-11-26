@@ -30,6 +30,7 @@ The library currently supports:
 
 We currently do not support, but plan to add support for:
 
+* Managing conflicted documents.
 * Documents with attachments.
 * Indexing and query support. For now only retrieving documents by ID is
   supported.
@@ -102,9 +103,11 @@ It's a similar story in maven, add the repo and the dependency:
 Once you have the dependencies installed, the classes described below should
 all be available to your project.
 
-### DatastoreManager and Datastore
+### Datastore and DatastoreManager objects
 
-The `DatastoreManager` object manages a directory where `Datastore` objects
+A `Datastore` object manages a set of JSON documents, keyed by ID.
+
+A `DatastoreManager` object manages a directory where `Datastore` objects
 store their data. It's a factory object for named `Datastore` instances. A
 named datastore will persist its data between application runs. Names are
 arbitrary strings, with the restriction that the name must match
@@ -132,6 +135,9 @@ Once you've a manager set up, it's straightforward to create datastores:
 Datastore ds = manager.openDatastore("my_datastore");
 Datastore ds2 = manager.openDatastore("other_datastore");
 ```
+
+The `DatabaseManager` handles creating and initialising non-existent
+datastores, so the object returned is ready for reading and writing.
 
 ### Document CRUD APIs
 
@@ -167,7 +173,7 @@ List<DBObject> docs = ds.getAllDocuments(0, pageSize, true);
 
 ### Replication
 
-Replication is straight forward with Cloudant Sync. You can replicate from a
+Replication is straightforward. You can replicate from a
 local datastore to a remote database, from a remote database to a local
 datastore, or both ways to implement synchronisation.
 
@@ -287,6 +293,24 @@ if (replicator_push.getState() != Replicator.State.COMPLETE) {
     System.out.println(listener.error);
 }
 ```
+
+## Conflicts
+
+A document is really a tree of the document and its history.
+
+As documents can be edited in more than one place at once, replication can
+cause documents to become conflicted. The document holds two or more _current
+revisions_ as branches within the document's tree. Alternatively, when a
+document holds more than one current revision, it's conflicted. An arbitrary
+one of the current revisions is selected as the _winning revision_, and is
+the one returned by calls to `Datastore#getDocument(...)`.
+
+See more information on document trees in the [javadocs][jd] for `DBObjectTree`.
+
+[jd]: docs/
+
+In v1 of the EAP, searching for and resolving conflicts isn't supported, but
+it'll be one of the first features we add.
 
 ## Finding data
 
