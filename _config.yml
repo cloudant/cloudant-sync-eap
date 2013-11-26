@@ -1,2 +1,4 @@
 
-markdown:      redcarpet
+markdown: redcarpet
+redcarpet:
+  extensions: [smart]
