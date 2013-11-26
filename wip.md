@@ -4,13 +4,15 @@ layout: default
 
 # Cloudant Sync - Early Access Program
 
-[Cloudant Sync][eap] is a CouchDB-replication-protocol-compatible datastore for
+[Cloudant Sync][eap] is an [Apache CouchDB&trade;][acdb]
+replication-protocol-compatible datastore for
 devices that don't want or need to run a full CouchDB instance. It's built
 by [Cloudant](https://cloudant.com), building on the work of many others, and
 is available under the [Apache 2.0 licence][ap2].
 
 [ap2]: https://github.com/cloudant/cloudant-sync-eap/blob/master/LICENSE
 [eap]: https://github.com/cloudant/cloudant-sync-eap
+[acdb]: http://couchdb.apache.org/
 
 ## EAP - version 1.0
 
@@ -22,12 +24,11 @@ data model but not the HTTP-centric API.
 
 Documents within the datastore are heterogeneous JSON documents.
 
-
 The library currently supports:
 
 * Creating, updating and deleting documents (CRUD).
 * Replication of data between a datastore managed by the library and remote
-  Cloudant or CouchDB databasees.
+  Cloudant or CouchDB databases.
 
 We currently do not support, but plan to add support for:
 
@@ -41,9 +42,12 @@ We currently do not support, but plan to add support for:
 There is a [getting started][eap] guide. The javadocs for the Android library
 are hosted [here][jd].
 
-Get in contact with us via [support@cloudant.com](mailto:support@cloudant.com)
-if you have any problems. We'll try to update both the libraries and this page
-with updates to solve common issues.
+Get in contact with us via the [GitHub issue tracker][ghit] if you have any
+problems and we'll try to get you up and running. We'll try to update both the
+libraries and this page with updates as we tease out common problems and
+questions.
+
+[ghit]: https://github.com/cloudant/cloudant-sync-eap/issues
 
 ## Using in your project
 
@@ -153,17 +157,24 @@ Datastore ds = manager.openDatastore("my_datastore");
 
 // Create a document
 DBBody body = new BasicDBBody(jsonData);
-BasicDBObject rev = ds.createDocument(body);
+DBObject revision = ds.createDocument(body);
 
 // Read a document
-DBObject rev3 = ds.getDocument(rev.getId());
+DBObject aRevision = ds.getDocument(revision.getId());
 
 // Update a document
-DBBody body2 = new BasicDBBody(jsonData2);
-BasicDBObject rev2 = ds.updateDocument(rev.getId(), rev.getRevision(), body2);
+DBBody updatedBody = new BasicDBBody(moreJsonData);
+updatedRevision = ds.updateDocument(
+    revision.getId(),
+    revision.getRevision(),
+    updatedBody
+);
 
 // Delete a document
-ds.deleteDocument(rev2.getId(), rev2.getRevision());
+ds.deleteDocument(
+    updatedRevision.getId(),
+    updatedRevision.getRevision()
+);
 ```
 
 The `getAllDocuments()` method allows iterating through all documents in the
@@ -303,7 +314,7 @@ if (replicator_push.getState() != Replicator.State.COMPLETE) {
 A document is really a tree of the document and its history.
 
 As documents can be edited in more than one place at once, replication can
-cause documents to become conflicted. The document holds two or more _current
+cause documents to become conflicted: the document holds two or more _current
 revisions_ as branches within the document's tree. Alternatively, when a
 document holds more than one current revision, it's conflicted. An arbitrary
 one of the current revisions is selected as the _winning revision_, and is
