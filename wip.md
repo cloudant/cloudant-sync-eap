@@ -4,12 +4,13 @@ layout: default
 
 # Cloudant Sync - Early Access Program
 
-Cloudant Sync is a CouchDB-replication-protocol-compatible datastore for
+[Cloudant Sync][eap] is a CouchDB-replication-protocol-compatible datastore for
 devices that don't want or need to run a full CouchDB instance. It's built
 by [Cloudant](https://cloudant.com), building on the work of many others, and
 is available under the [Apache 2.0 licence][ap2].
 
-[ap2]: http://www.apache.org/licenses/LICENSE-2.0.txt
+[ap2]: https://github.com/cloudant/cloudant-sync-eap/blob/master/LICENSE
+[eap]: https://github.com/cloudant/cloudant-sync-eap
 
 ## EAP - version 1.0
 
