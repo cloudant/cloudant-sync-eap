@@ -1,5 +1,7 @@
 package com.cloudant.todo;
 
+import com.cloudant.sync.datastore.ConflictException;
+
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -8,14 +10,11 @@ import java.util.List;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -30,16 +29,9 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
-import com.cloudant.sync.datastore.ConflictException;
-import com.cloudant.sync.datastore.Datastore;
-import com.cloudant.sync.datastore.DatastoreManager;
-import com.cloudant.sync.replication.ErrorInfo;
-import com.cloudant.sync.replication.ReplicationListener;
-import com.cloudant.sync.replication.Replicator;
-import com.cloudant.sync.replication.ReplicatorFactory;
-
-public class TodoActivity extends ListActivity 
-	implements ReplicationListener, OnSharedPreferenceChangeListener {
+public class TodoActivity
+        extends ListActivity
+        implements OnSharedPreferenceChangeListener {
 
     static final String LOG_TAG = "TodoActivity";
 
@@ -51,15 +43,8 @@ public class TodoActivity extends ListActivity
 	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
 	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_password";
 
-	static final String DATASTORE_MANGER_DIR = "data";
-	static final String TASKS_DATASTORE_NAME = "tasks";
-
-	private Tasks mTasks;
+	private TasksModel mTasks;
 	private TaskAdapter mTaskAdapter;
-    private Datastore mDatastore;
-	private Replicator mPushReplicator;
-	private Replicator mPullReplicator;
-	private Handler mHandler;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -75,196 +60,28 @@ public class TodoActivity extends ListActivity
 		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
 		sharedPref.registerOnSharedPreferenceChangeListener(this);
 
-        this.mHandler = new Handler(Looper.getMainLooper());
+        // The TasksModel calls back to this object when the datastore is
+        // changed by replication.
+        this.mTasks = new TasksModel(this);
 
-		this.initDatastore();
-		this.initReplicators();
-        this.initListAdapter();
+        // Populate the list view with the initial list of tasks
+        this.reloadTasksFromModel();
     }
 
-    private void initListAdapter() {
-        List<Task> tasks = this.mTasks.allDocuments();
+    //
+    // HELPER METHODS
+    //
+
+    private void reloadTasksFromModel() {
+        List<Task> tasks = this.mTasks.allTasks();
         this.mTaskAdapter = new TaskAdapter(this, tasks);
         this.setListAdapter(this.mTaskAdapter);
     }
 
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        if(mActionMode != null) {
-            mActionMode.finish();
-        }
-
-        // Make the newly clicked item the currently selected one.
-        this.getListView().setItemChecked(position, true);
-        mActionMode = this.startActionMode(mActionModeCallback);
-    }
-
-    @Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.todo, menu);
-		return true;
-	}
-
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle item selection
-		switch (item.getItemId()) {
-		case R.id.action_new:
-			this.showDialog(DIALOG_NEW_TASK);
-			return true;
-		case R.id.action_download:
-			download();
-			return true;
-		case R.id.action_upload:
-			upload();
-			return true;
-		case R.id.action_settings:
-			this.showSettings();
-			return true;
-		default:
-			return super.onOptionsItemSelected(item);
-		}
-	}
-
-	void showSettings() {
-		this.startActivity(new Intent().setClass(this, SettingsActivity.class));
-	}
-
-	@Override
-	protected Dialog onCreateDialog(int id, Bundle args) {
-		if (id == DIALOG_NEW_TASK) {
-			return createNewTaskDialog();
-		} else if (id == DIALOG_PROGRESS) {
-			return createProgressDialog();
-		} else {
-			throw new RuntimeException("No dialog defined for id: " + id);
-		}
-	}
-
-	public Dialog createProgressDialog() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		final View v = this.getLayoutInflater().inflate(R.layout.dialog_loading, null);
-		builder.setView(v).setNegativeButton("Stop",
-				new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-						stopReplication();
-					}
-				})
-				.setOnKeyListener(new DialogInterface.OnKeyListener() {
-					@Override
-					public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
-						if(keyCode == KeyEvent.KEYCODE_BACK) {
-							Toast.makeText(getApplicationContext(),
-									R.string.replication_running, Toast.LENGTH_LONG).show();
-							return true;
-						}
-						return false;
-					}
-				});
-
-		return builder.create();
-	}
-
-	public Dialog createNewTaskDialog() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		final View v = this.getLayoutInflater().inflate(R.layout.dialog_new_task, null);
-		final EditText description = (EditText) v
-				.findViewById(R.id.new_task_desc);
-
-		builder.setView(v)
-				.setTitle(R.string.new_task)
-				.setPositiveButton(R.string.create,
-						new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int id) {
-								if (description.getText().length() > 0) {
-									createNewTask(description.getText()
-											.toString());
-									description.getText().clear();
-								} else {
-									// Tell user the task is not created because
-									// description is required
-									Toast.makeText(getApplicationContext(),
-                                            R.string.task_not_created,
-                                            Toast.LENGTH_LONG).show();
-								}
-							}
-						})
-				.setNegativeButton(R.string.cancel,
-						new DialogInterface.OnClickListener() {
-							public void onClick(DialogInterface dialog, int id) {
-								dialog.dismiss();
-							}
-						});
-
-		final AlertDialog d = builder.create();
-		d.setOnShowListener(new DialogInterface.OnShowListener() {
-			@Override
-			public void onShow(DialogInterface dialog) {
-				final Button b = d.getButton(DialogInterface.BUTTON_POSITIVE);
-				b.setEnabled(description.getText().length() > 0);
-
-				description.addTextChangedListener(new TextWatcher() {
-					@Override
-					public void onTextChanged(CharSequence s, int start,
-							int before, int count) {
-						b.setEnabled(description.getText().length() > 0);
-					}
-
-					@Override
-					public void beforeTextChanged(CharSequence s, int start,
-							int count, int after) {
-					}
-
-					@Override
-					public void afterTextChanged(Editable s) {
-					}
-				});
-			}
-		});
-
-		return d;
-	}
-
-	public void initDatastore() {
-		File path = getApplicationContext().getDir(DATASTORE_MANGER_DIR,
-				Context.MODE_PRIVATE);
-		DatastoreManager manager = new DatastoreManager(path.getAbsolutePath());
-		this.mDatastore = manager.openDatastore(TASKS_DATASTORE_NAME);
-		this.mTasks = new Tasks(mDatastore);
-	}
-	
-	public void initReplicators() {
-		try {
-			URI uri = this.createServerURI();
-			Log.d(LOG_TAG, "uri:" + uri.toString());
-			mPushReplicator = ReplicatorFactory.oneway(mDatastore, uri);
-			mPullReplicator = ReplicatorFactory.oneway(uri, mDatastore);
-
-			mPushReplicator.setListener(this);
-			mPullReplicator.setListener(this);
-		} catch (URISyntaxException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	private URI createServerURI() throws URISyntaxException {
-		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-		String username = sharedPref.getString(SETTINGS_CLOUDANT_USER, "");
-		String dbName = sharedPref.getString(SETTINGS_CLOUDANT_DB, "");
-		String apiKey = sharedPref.getString(SETTINGS_CLOUDANT_API_KEY, "");
-		String apiSecret = sharedPref.getString(SETTINGS_CLOUDANT_API_SECRET, "");
-		String host = username + ".cloudant.com";
-		
-		return new URI("https", apiKey + ":" + apiSecret, host, 443, "/" + dbName, null, null);
-	}
-
     private void createNewTask(String desc) {
-		Task t = new Task(desc);
-		mTaskAdapter.add(mTasks.createDocument(t));
-	}
+        Task t = new Task(desc);
+        mTaskAdapter.add(mTasks.createDocument(t));
+    }
 
     private void toggleTaskCompleteAt(int position) {
         try {
@@ -290,69 +107,203 @@ public class TodoActivity extends ListActivity
         }
     }
 
-	@Override
-	public void complete(Replicator replicator) {
-		mHandler.post(new Runnable() {
-			@Override
-			public void run() {
-				replicationComplete();
-			}
-		});
-	}
-
-	@Override
-	public void error(Replicator replicator, final ErrorInfo error) {
-        Log.i(LOG_TAG, "error()");
-        mHandler.post(new Runnable() {
-			@Override
-			public void run() {
-				replicationError(error);
-			}
-		});
-	}
-	
-	public void onCompleteCheckboxClicked(View view) {
+    public void onCompleteCheckboxClicked(View view) {
         this.toggleTaskCompleteAt(view.getId());
     }
 
+    void stopReplication() {
+        mTasks.stopAllReplications();
+        this.dismissDialog(DIALOG_PROGRESS);
+        mTaskAdapter.notifyDataSetChanged();
+    }
+
+    /**
+     * Called by TasksModel when it receives a replication complete callback.
+     * TasksModel takes care of calling this on the main thread.
+     */
     void replicationComplete() {
-        this.initListAdapter();
-		Toast.makeText(getApplicationContext(), R.string.replication_completed,
-				Toast.LENGTH_LONG).show();
-		this.dismissDialog(DIALOG_PROGRESS);
+        reloadTasksFromModel();
+        Toast.makeText(getApplicationContext(),
+                R.string.replication_completed,
+                Toast.LENGTH_LONG).show();
+        dismissDialog(DIALOG_PROGRESS);
+    }
+
+    /**
+     * Called by TasksModel when it receives a replication error callback.
+     * TasksModel takes care of calling this on the main thread.
+     */
+    void replicationError() {
+        Log.i(LOG_TAG, "error()");
+        reloadTasksFromModel();
+        Toast.makeText(getApplicationContext(),
+                R.string.replication_error,
+                Toast.LENGTH_LONG).show();
+        dismissDialog(DIALOG_PROGRESS);
+    }
+
+    //
+    // EVENT HANDLING
+    //
+
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        if(mActionMode != null) {
+            mActionMode.finish();
+        }
+
+        // Make the newly clicked item the currently selected one.
+        this.getListView().setItemChecked(position, true);
+        mActionMode = this.startActionMode(mActionModeCallback);
+    }
+
+    @Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.todo, menu);
+		return true;
 	}
 
-	void replicationError(ErrorInfo error) {
-		Log.e(LOG_TAG, "Replication error:", error.getException());
-        this.initListAdapter();
-		Toast.makeText(getApplicationContext(),
-				R.string.replication_error, Toast.LENGTH_LONG)
-				.show();
-		this.dismissDialog(DIALOG_PROGRESS);
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Handle item selection
+		switch (item.getItemId()) {
+            case R.id.action_new:
+                this.showDialog(DIALOG_NEW_TASK);
+                return true;
+            case R.id.action_download:
+                this.showDialog(DIALOG_PROGRESS);
+                mTasks.startPullReplication();
+                return true;
+            case R.id.action_upload:
+                this.showDialog(DIALOG_PROGRESS);
+                mTasks.startPushReplication();
+                return true;
+            case R.id.action_settings:
+                this.startActivity(
+                        new Intent().setClass(this, SettingsActivity.class)
+                );
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+		}
 	}
 
-	void stopReplication() {
-		mPullReplicator.stop();
-		mPushReplicator.stop();
-		this.dismissDialog(DIALOG_PROGRESS);
-		mTaskAdapter.notifyDataSetChanged();
+	@Override
+	protected Dialog onCreateDialog(int id, Bundle args) {
+        switch (id) {
+            case DIALOG_NEW_TASK:
+                return createNewTaskDialog();
+            case DIALOG_PROGRESS:
+                return createProgressDialog();
+            default:
+                throw new RuntimeException("No dialog defined for id: " + id);
+        }
 	}
 
-	void download() {
-		this.showDialog(DIALOG_PROGRESS);
-		mPullReplicator.start();
+	public Dialog createProgressDialog() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        final View v = this.getLayoutInflater().inflate(R.layout.dialog_loading, null);
+
+        DialogInterface.OnClickListener negativeClick = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                stopReplication();
+            }
+        };
+
+        DialogInterface.OnKeyListener keyListener = new DialogInterface.OnKeyListener() {
+            @Override
+            public boolean onKey(DialogInterface dialog, int keyCode, KeyEvent event) {
+                if (keyCode == KeyEvent.KEYCODE_BACK) {
+                    Toast.makeText(getApplicationContext(),
+                            R.string.replication_running, Toast.LENGTH_LONG).show();
+                    return true;
+                }
+                return false;
+            }
+        };
+
+        builder.setView(v).setNegativeButton("Stop", negativeClick).setOnKeyListener(keyListener);
+
+        return builder.create();
 	}
 
-	void upload() {
-		this.showDialog(DIALOG_PROGRESS);
-		mPushReplicator.start();
+	public Dialog createNewTaskDialog() {
+	    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View v = this.getLayoutInflater().inflate(R.layout.dialog_new_task, null);
+        final EditText description = (EditText) v.findViewById(R.id.new_task_desc);
+
+        // Check description is present, if so add a task otherwise show an error
+        DialogInterface.OnClickListener positiveClick = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+                if (description.getText().length() > 0) {
+                    createNewTask(description.getText().toString());
+                    description.getText().clear();
+                } else {
+                    Toast.makeText(getApplicationContext(),
+                            R.string.task_not_created,
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+        };
+
+        DialogInterface.OnClickListener negativeClick = new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                dialog.dismiss();
+            }
+        };
+
+        builder.setView(v).setTitle(R.string.new_task)
+                .setPositiveButton(R.string.create, positiveClick)
+                .setNegativeButton(R.string.cancel, negativeClick);
+
+        final AlertDialog d = builder.create();
+        final Button b = d.getButton(DialogInterface.BUTTON_POSITIVE);
+
+        // Enable "Create" button when the description has some characters
+        final TextWatcher textWatcher = new TextWatcher() {
+            @Override
+            public void onTextChanged(CharSequence s, int start,
+                                      int before, int count) {
+                b.setEnabled(description.getText().length() > 0);
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start,
+                                          int count, int after) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        };
+
+        d.setOnShowListener(new DialogInterface.OnShowListener() {
+            @Override
+            public void onShow(DialogInterface dialog) {
+                b.setEnabled(description.getText().length() > 0);
+                description.addTextChangedListener(textWatcher);
+            }
+        });
+
+		return d;
 	}
 
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
 		Log.d(LOG_TAG, "onSharedPreferenceChanged()");
-		this.initReplicators();
+
+        try {
+		    this.mTasks.reloadReplicationSettings();
+        } catch (URISyntaxException e) {
+            Log.e(LOG_TAG, "Unable to constuct remote URI from configuration", e);
+            Toast.makeText(getApplicationContext(),
+                    R.string.replication_error,
+                    Toast.LENGTH_LONG).show();
+        }
 	}
 
     ActionMode mActionMode = null;
