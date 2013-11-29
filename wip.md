@@ -147,6 +147,16 @@ Datastore ds2 = manager.openDatastore("other_datastore");
 The `DatabaseManager` handles creating and initialising non-existent
 datastores, so the object returned is ready for reading and writing.
 
+To delete a datastore:
+
+```java
+manager.deleteDatastore("my_datastore");
+```
+
+It's important to note that this doesn't check there are any active
+`Datastore` objects for this datastore. The behaviour of active `Datastore`
+objects after their underlying files have been deleted is undefined.
+
 ### Document CRUD APIs
 
 Once you have a `Datastore` instance, you can use it to create, update and
