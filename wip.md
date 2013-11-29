@@ -311,14 +311,25 @@ if (replicator_push.getState() != Replicator.State.COMPLETE) {
 
 ## Conflicts
 
-A document is really a tree of the document and its history.
+A document is really a tree of the document and its history. This is neat
+because it allows us to store multiple versions of a document. In the main,
+there's a single, linear tree -- just a single branch -- running from the
+creation of the document to the current revision. It's possible, however,
+to create further branches in the tree.
 
-As documents can be edited in more than one place at once, replication can
-cause documents to become conflicted: the document holds two or more _current
-revisions_ as branches within the document's tree. Alternatively, when a
-document holds more than one current revision, it's conflicted. An arbitrary
-one of the current revisions is selected as the _winning revision_, and is
-the one returned by calls to `Datastore#getDocument(...)`.
+When a document has been replicated to more than one place, it's possible to
+edit it concurrently in two places. When the datastores storing the document
+then replicate with each other again, they each add their changes to the
+document's tree. This causes an extra branch to be added to the tree for
+each concurrent set of changes. When this happens, the document is said to be
+_conflicted_. This creates multiple current revisions of the document, one for
+each of the concurrent changes.
+
+To make things easier, calling `Datastore#getDocument(...)` returns one of
+the leaf nodes of the branches of the conflicted document. It selects the
+node to return in an arbitrary but deterministic way, which means that all
+replicas of the database will return the same revision for the document. The
+other copies of the document are still there, however, waiting to be merged.
 
 See more information on document trees in the [javadocs][jd] for `DBObjectTree`.
 
