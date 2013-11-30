@@ -9,7 +9,7 @@ http://cloudant.github.io/cloudant-sync-eap.
 
 The Cloudant Sync Datastore Android library embeds Apache 2.0 licensed
 code. As the library is currently provided in binary form, in addition
-to crediting the valudable contributions of others, we've reproduced the
+to crediting the valuable contributions of others, we've reproduced the
 headers for the affected files.
 
 The MVCC layer (the `com.cloudant.sync.datastore` package) holds 
