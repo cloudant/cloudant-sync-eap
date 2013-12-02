@@ -260,13 +260,13 @@ public class TodoActivity
                 .setNegativeButton(R.string.cancel, negativeClick);
 
         final AlertDialog d = builder.create();
-        final Button b = d.getButton(DialogInterface.BUTTON_POSITIVE);
 
         // Enable "Create" button when the description has some characters
         final TextWatcher textWatcher = new TextWatcher() {
             @Override
             public void onTextChanged(CharSequence s, int start,
                                       int before, int count) {
+                final Button b = d.getButton(DialogInterface.BUTTON_POSITIVE);
                 b.setEnabled(description.getText().length() > 0);
             }
 
@@ -283,6 +283,7 @@ public class TodoActivity
         d.setOnShowListener(new DialogInterface.OnShowListener() {
             @Override
             public void onShow(DialogInterface dialog) {
+                final Button b = d.getButton(DialogInterface.BUTTON_POSITIVE);
                 b.setEnabled(description.getText().length() > 0);
                 description.addTextChangedListener(textWatcher);
             }
