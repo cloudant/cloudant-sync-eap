@@ -8,7 +8,6 @@ import com.cloudant.sync.replication.ErrorInfo;
 import com.cloudant.sync.replication.ReplicationListener;
 import com.cloudant.sync.replication.Replicator;
 import com.cloudant.sync.replication.ReplicatorFactory;
-import com.cloudant.sync.util.JSONUtils;
 import com.cloudant.sync.util.TypedDatastore;
 
 import android.content.Context;
@@ -85,7 +84,7 @@ class TasksModel implements ReplicationListener {
 
     /**
      * Creates a task, assigning an ID.
-     * @param task
+     * @param task task to create
      * @return new revision of the document
      */
     public Task createDocument(Task task) {
@@ -94,7 +93,7 @@ class TasksModel implements ReplicationListener {
 
     /**
      * Updates a Task document within the datastore.
-     * @param task
+     * @param task task to update
      * @return the updated revision of the Task
      * @throws ConflictException if the task passed in has a rev which doesn't
      *      match the current rev in the datastore.
@@ -106,8 +105,7 @@ class TasksModel implements ReplicationListener {
 
     /**
      * Deletes a Task document within the datastore.
-     * @param task
-     * @return the updated revision of the Task
+     * @param task task to delete
      * @throws ConflictException if the task passed in has a rev which doesn't
      *      match the current rev in the datastore.
      */
