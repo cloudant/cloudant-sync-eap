@@ -2,8 +2,6 @@ package com.cloudant.todo;
 
 import com.cloudant.sync.datastore.ConflictException;
 
-import java.io.File;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
@@ -43,7 +41,10 @@ public class TodoActivity
 	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
 	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_password";
 
-	private TasksModel mTasks;
+    // Makes sure we don't assign sTasks twice.
+    private static final Object sTasksCreateLock = new Object();
+    // Main data model object
+	private static TasksModel sTasks;
 	private TaskAdapter mTaskAdapter;
 
 	@Override
@@ -51,43 +52,71 @@ public class TodoActivity
 		Log.d(LOG_TAG, "onCreate()");
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_todo);
-		
-		// set the default settings
-		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
-		
-		// register to listen to the setting changes because replicators
-		// uses information managed by shared preference
-		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
-		sharedPref.registerOnSharedPreferenceChangeListener(this);
 
-        // The TasksModel calls back to this object when the datastore is
-        // changed by replication.
-        this.mTasks = new TasksModel(this);
+        // Load default settings when we're first created.
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
 
-        // Populate the list view with the initial list of tasks
+        // Register to listen to the setting changes because replicators
+        // uses information managed by shared preference.
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPref.registerOnSharedPreferenceChangeListener(this);
+
+        // Protect creation of static variable.
+        synchronized (sTasksCreateLock) {
+            if (sTasks == null) {
+                // Model needs to stay in existence for lifetime of app.
+                this.sTasks = new TasksModel(this.getApplicationContext());
+            }
+        }
+
+        // Register this activity as the listener to replication updates
+        // while its active.
+        this.sTasks.setReplicationListener(this);
+
+        // Load the tasks from the model
         this.reloadTasksFromModel();
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.d(LOG_TAG, "onDestroy()");
+        super.onDestroy();
+
+        // Clear our reference as listener.
+        this.sTasks.setReplicationListener(null);
     }
 
     //
     // HELPER METHODS
     //
 
+    private void reloadReplicationSettings() {
+        try {
+            this.sTasks.reloadReplicationSettings();
+        } catch (URISyntaxException e) {
+            Log.e(LOG_TAG, "Unable to construct remote URI from configuration", e);
+            Toast.makeText(getApplicationContext(),
+                    R.string.replication_error,
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void reloadTasksFromModel() {
-        List<Task> tasks = this.mTasks.allTasks();
+        List<Task> tasks = this.sTasks.allTasks();
         this.mTaskAdapter = new TaskAdapter(this, tasks);
         this.setListAdapter(this.mTaskAdapter);
     }
 
     private void createNewTask(String desc) {
         Task t = new Task(desc);
-        mTaskAdapter.add(mTasks.createDocument(t));
+        mTaskAdapter.add(sTasks.createDocument(t));
     }
 
     private void toggleTaskCompleteAt(int position) {
         try {
             Task t = (Task) mTaskAdapter.getItem(position);
             t.setCompleted(!t.isCompleted());
-            t = mTasks.updateDocument(t);
+            t = sTasks.updateDocument(t);
             mTaskAdapter.set(position, t);
         } catch (ConflictException e) {
             throw new RuntimeException(e);
@@ -97,7 +126,7 @@ public class TodoActivity
     private void deleteTaskAt(int position) {
         try {
             Task t = (Task) mTaskAdapter.getItem(position);
-            mTasks.deleteDocument(t);
+            sTasks.deleteDocument(t);
             mTaskAdapter.remove(position);
             Toast.makeText(TodoActivity.this,
                     "Deleted item : " + t.getDescription(),
@@ -112,7 +141,7 @@ public class TodoActivity
     }
 
     void stopReplication() {
-        mTasks.stopAllReplications();
+        sTasks.stopAllReplications();
         this.dismissDialog(DIALOG_PROGRESS);
         mTaskAdapter.notifyDataSetChanged();
     }
@@ -173,11 +202,11 @@ public class TodoActivity
                 return true;
             case R.id.action_download:
                 this.showDialog(DIALOG_PROGRESS);
-                mTasks.startPullReplication();
+                sTasks.startPullReplication();
                 return true;
             case R.id.action_upload:
                 this.showDialog(DIALOG_PROGRESS);
-                mTasks.startPushReplication();
+                sTasks.startPushReplication();
                 return true;
             case R.id.action_settings:
                 this.startActivity(
@@ -296,15 +325,7 @@ public class TodoActivity
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
 		Log.d(LOG_TAG, "onSharedPreferenceChanged()");
-
-        try {
-		    this.mTasks.reloadReplicationSettings();
-        } catch (URISyntaxException e) {
-            Log.e(LOG_TAG, "Unable to constuct remote URI from configuration", e);
-            Toast.makeText(getApplicationContext(),
-                    R.string.replication_error,
-                    Toast.LENGTH_LONG).show();
-        }
+        reloadReplicationSettings();
 	}
 
     ActionMode mActionMode = null;

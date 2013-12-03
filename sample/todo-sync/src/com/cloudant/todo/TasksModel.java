@@ -42,10 +42,11 @@ class TasksModel implements ReplicationListener {
     private Replicator mPushReplicator;
     private Replicator mPullReplicator;
 
-    private final TodoActivity mContext;
+    private final Context mContext;
     private final Handler mHandler;
+    private TodoActivity mListener;
 
-    public TasksModel(TodoActivity context) {
+    public TasksModel(Context context) {
 
         this.mContext = context;
 
@@ -76,6 +77,18 @@ class TasksModel implements ReplicationListener {
         this.mHandler = new Handler(Looper.getMainLooper());
 
         Log.d(LOG_TAG, "TasksModel set up " + path.getAbsolutePath());
+    }
+
+    //
+    // GETTERS AND SETTERS
+    //
+
+    /**
+     * Sets the listener for replication callbacks as a weak reference.
+     * @param listener {@link TodoActivity} to receive callbacks.
+     */
+    public void setReplicationListener(TodoActivity listener) {
+        this.mListener = listener;
     }
 
     //
@@ -239,7 +252,9 @@ class TasksModel implements ReplicationListener {
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                mContext.replicationComplete();
+                if (mListener != null) {
+                    mListener.replicationComplete();
+                }
             }
         });
     }
@@ -255,9 +270,10 @@ class TasksModel implements ReplicationListener {
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                mContext.replicationError();
+                if (mListener != null) {
+                    mListener.replicationError();
+                }
             }
         });
     }
-
 }
