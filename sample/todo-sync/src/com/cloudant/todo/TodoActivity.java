@@ -1,10 +1,9 @@
 package com.cloudant.todo;
 
 import com.cloudant.sync.datastore.ConflictException;
-import com.cloudant.sync.replication.ErrorInfo;
-import com.cloudant.sync.replication.ReplicationListener;
-import com.cloudant.sync.replication.Replicator;
 
+import java.io.File;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 
@@ -16,8 +15,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -34,7 +31,7 @@ import android.widget.Toast;
 
 public class TodoActivity
         extends ListActivity
-        implements ReplicationListener, OnSharedPreferenceChangeListener {
+        implements OnSharedPreferenceChangeListener {
 
     static final String LOG_TAG = "TodoActivity";
 
@@ -46,11 +43,10 @@ public class TodoActivity
 	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
 	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_password";
 
-	private static TasksModel sTasks;
+	private TasksModel mTasks;
 	private TaskAdapter mTaskAdapter;
-    private Handler mHandler;
 
-    @Override
+	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d(LOG_TAG, "onCreate()");
 		super.onCreate(savedInstanceState);
@@ -64,83 +60,34 @@ public class TodoActivity
 		SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
 		sharedPref.registerOnSharedPreferenceChangeListener(this);
 
-        if(sTasks == null) {
-            // The TasksModel calls back to this object when the datastore is
-            // changed by replication.
-            sTasks = new TasksModel(this.getApplicationContext());
-        }
+        // The TasksModel calls back to this object when the datastore is
+        // changed by replication.
+        this.mTasks = new TasksModel(this);
 
         // Populate the list view with the initial list of tasks
         this.reloadTasksFromModel();
-
-        // Allow us to switch code called by the ReplicationListener into
-        // the main thread so the UI can update safely.
-        this.mHandler = new Handler(Looper.getMainLooper());
-        sTasks.setReplicatorListener(this);
     }
-
-    @Override
-    public void onDestroy() {
-        // make sure the TaskModel does not hold a
-        sTasks.setReplicatorListener(null);
-    }
-
-    //
-    // REPLICATIONLISTENER IMPLEMENTATION
-    //
-
-    /**
-     * Calls the TodoActivity's replicationComplete method on the main thread,
-     * as the complete() callback will probably come from a replicator worker
-     * thread.
-     */
-    @Override
-    public void complete(Replicator replicator) {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                replicationComplete();
-            }
-        });
-    }
-
-    /**
-     * Calls the TodoActivity's replicationComplete method on the main thread,
-     * as the error() callback will probably come from a replicator worker
-     * thread.
-     */
-    @Override
-    public void error(Replicator replicator, final ErrorInfo error) {
-        Log.e(LOG_TAG, "Replication error:", error.getException());
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                replicationError();
-            }
-        });
-    }
-
 
     //
     // HELPER METHODS
     //
 
     private void reloadTasksFromModel() {
-        List<Task> tasks = sTasks.allTasks();
+        List<Task> tasks = this.mTasks.allTasks();
         this.mTaskAdapter = new TaskAdapter(this, tasks);
         this.setListAdapter(this.mTaskAdapter);
     }
 
     private void createNewTask(String desc) {
         Task t = new Task(desc);
-        mTaskAdapter.add(sTasks.createDocument(t));
+        mTaskAdapter.add(mTasks.createDocument(t));
     }
 
     private void toggleTaskCompleteAt(int position) {
         try {
             Task t = (Task) mTaskAdapter.getItem(position);
             t.setCompleted(!t.isCompleted());
-            t = sTasks.updateDocument(t);
+            t = mTasks.updateDocument(t);
             mTaskAdapter.set(position, t);
         } catch (ConflictException e) {
             throw new RuntimeException(e);
@@ -150,7 +97,7 @@ public class TodoActivity
     private void deleteTaskAt(int position) {
         try {
             Task t = (Task) mTaskAdapter.getItem(position);
-            sTasks.deleteDocument(t);
+            mTasks.deleteDocument(t);
             mTaskAdapter.remove(position);
             Toast.makeText(TodoActivity.this,
                     "Deleted item : " + t.getDescription(),
@@ -165,7 +112,7 @@ public class TodoActivity
     }
 
     void stopReplication() {
-        sTasks.stopAllReplications();
+        mTasks.stopAllReplications();
         this.dismissDialog(DIALOG_PROGRESS);
         mTaskAdapter.notifyDataSetChanged();
     }
@@ -176,7 +123,7 @@ public class TodoActivity
      */
     void replicationComplete() {
         reloadTasksFromModel();
-        Toast.makeText(this,
+        Toast.makeText(getApplicationContext(),
                 R.string.replication_completed,
                 Toast.LENGTH_LONG).show();
         dismissDialog(DIALOG_PROGRESS);
@@ -189,7 +136,7 @@ public class TodoActivity
     void replicationError() {
         Log.i(LOG_TAG, "error()");
         reloadTasksFromModel();
-        Toast.makeText(this,
+        Toast.makeText(getApplicationContext(),
                 R.string.replication_error,
                 Toast.LENGTH_LONG).show();
         dismissDialog(DIALOG_PROGRESS);
@@ -226,11 +173,11 @@ public class TodoActivity
                 return true;
             case R.id.action_download:
                 this.showDialog(DIALOG_PROGRESS);
-                sTasks.startPullReplication();
+                mTasks.startPullReplication();
                 return true;
             case R.id.action_upload:
                 this.showDialog(DIALOG_PROGRESS);
-                sTasks.startPushReplication();
+                mTasks.startPushReplication();
                 return true;
             case R.id.action_settings:
                 this.startActivity(
@@ -351,9 +298,9 @@ public class TodoActivity
 		Log.d(LOG_TAG, "onSharedPreferenceChanged()");
 
         try {
-		    this.sTasks.reloadReplicationSettings();
+		    this.mTasks.reloadReplicationSettings();
         } catch (URISyntaxException e) {
-            Log.e(LOG_TAG, "Unable to construct remote URI from configuration", e);
+            Log.e(LOG_TAG, "Unable to constuct remote URI from configuration", e);
             Toast.makeText(getApplicationContext(),
                     R.string.replication_error,
                     Toast.LENGTH_LONG).show();

@@ -4,6 +4,7 @@ import com.cloudant.sync.datastore.ConflictException;
 import com.cloudant.sync.datastore.Datastore;
 import com.cloudant.sync.datastore.DatastoreManager;
 import com.cloudant.sync.datastore.DBObject;
+import com.cloudant.sync.replication.ErrorInfo;
 import com.cloudant.sync.replication.ReplicationListener;
 import com.cloudant.sync.replication.Replicator;
 import com.cloudant.sync.replication.ReplicatorFactory;
@@ -11,6 +12,8 @@ import com.cloudant.sync.util.TypedDatastore;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
@@ -26,7 +29,7 @@ import java.net.URISyntaxException;
 /**
  * <p>Handles dealing with the datastore and replication.</p>
  */
-class TasksModel {
+class TasksModel implements ReplicationListener {
 
     private static final String LOG_TAG = "TasksModel";
 
@@ -39,9 +42,10 @@ class TasksModel {
     private Replicator mPushReplicator;
     private Replicator mPullReplicator;
 
-    private final Context mContext;
+    private final TodoActivity mContext;
+    private final Handler mHandler;
 
-    public TasksModel(Context context) {
+    public TasksModel(TodoActivity context) {
 
         this.mContext = context;
 
@@ -66,6 +70,10 @@ class TasksModel {
         } catch (URISyntaxException e) {
             Log.e(LOG_TAG, "Unable to constuct remote URI from configuration", e);
         }
+
+        // Allow us to switch code called by the ReplicationListener into
+        // the main thread so the UI can update safely.
+        this.mHandler = new Handler(Looper.getMainLooper());
 
         Log.d(LOG_TAG, "TasksModel set up " + path.getAbsolutePath());
     }
@@ -188,14 +196,12 @@ class TasksModel {
         URI uri = this.createServerURI();
 
         mPushReplicator = ReplicatorFactory.oneway(mDatastore, uri);
+        mPushReplicator.setListener(this);
+
         mPullReplicator = ReplicatorFactory.oneway(uri, mDatastore);
+        mPullReplicator.setListener(this);
 
         Log.d(LOG_TAG, "Set up replicators for URI:" + uri.toString());
-    }
-
-    public void setReplicatorListener(ReplicationListener listener) {
-        mPushReplicator.setListener(listener);
-        mPullReplicator.setListener(listener);
     }
 
     /**
@@ -218,4 +224,40 @@ class TasksModel {
         // We recommend always using HTTPS to talk to Cloudant.
         return new URI("https", apiKey + ":" + apiSecret, host, 443, "/" + dbName, null, null);
     }
+
+    //
+    // REPLICATIONLISTENER IMPLEMENTATION
+    //
+
+    /**
+     * Calls the TodoActivity's replicationComplete method on the main thread,
+     * as the complete() callback will probably come from a replicator worker
+     * thread.
+     */
+    @Override
+    public void complete(Replicator replicator) {
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mContext.replicationComplete();
+            }
+        });
+    }
+
+    /**
+     * Calls the TodoActivity's replicationComplete method on the main thread,
+     * as the error() callback will probably come from a replicator worker
+     * thread.
+     */
+    @Override
+    public void error(Replicator replicator, final ErrorInfo error) {
+        Log.e(LOG_TAG, "Replication error:", error.getException());
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mContext.replicationError();
+            }
+        });
+    }
+
 }
