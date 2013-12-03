@@ -41,8 +41,6 @@ public class TodoActivity
 	static final String SETTINGS_CLOUDANT_API_KEY = "pref_key_api_key";
 	static final String SETTINGS_CLOUDANT_API_SECRET = "pref_key_api_password";
 
-    // Makes sure we don't assign sTasks twice.
-    private static final Object sTasksCreateLock = new Object();
     // Main data model object
 	private static TasksModel sTasks;
 	private TaskAdapter mTaskAdapter;
@@ -62,11 +60,9 @@ public class TodoActivity
         sharedPref.registerOnSharedPreferenceChangeListener(this);
 
         // Protect creation of static variable.
-        synchronized (sTasksCreateLock) {
-            if (sTasks == null) {
-                // Model needs to stay in existence for lifetime of app.
-                this.sTasks = new TasksModel(this.getApplicationContext());
-            }
+        if (sTasks == null) {
+            // Model needs to stay in existence for lifetime of app.
+            this.sTasks = new TasksModel(this.getApplicationContext());
         }
 
         // Register this activity as the listener to replication updates
