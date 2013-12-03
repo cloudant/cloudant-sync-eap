@@ -69,7 +69,7 @@ class TasksModel implements ReplicationListener {
         try {
             this.reloadReplicationSettings();
         } catch (URISyntaxException e) {
-            Log.e(LOG_TAG, "Unable to constuct remote URI from configuration", e);
+            Log.e(LOG_TAG, "Unable to construct remote URI from configuration", e);
         }
 
         // Allow us to switch code called by the ReplicationListener into
