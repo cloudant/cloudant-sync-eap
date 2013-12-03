@@ -3,7 +3,7 @@ package com.cloudant.todo;
 import com.cloudant.sync.datastore.ConflictException;
 import com.cloudant.sync.datastore.Datastore;
 import com.cloudant.sync.datastore.DatastoreManager;
-import com.cloudant.sync.datastore.DBObject;
+import com.cloudant.sync.datastore.DocumentRevision;
 import com.cloudant.sync.replication.ErrorInfo;
 import com.cloudant.sync.replication.ReplicationListener;
 import com.cloudant.sync.replication.Replicator;
@@ -132,14 +132,14 @@ class TasksModel implements ReplicationListener {
      */
     public List<Task> allTasks() {
         int nDocs = this.mDatastore.getDocumentCount();
-        List<DBObject> all = this.mDatastore.getAllDocuments(0, nDocs, true);
+        List<DocumentRevision> all = this.mDatastore.getAllDocuments(0, nDocs, true);
         List<Task> tasks = new ArrayList<Task>();
 
         // Filter all documents down to those of type Task.
-        for(DBObject obj : all) {
+        for(DocumentRevision obj : all) {
             Map<String, Object> map = obj.asMap();
             if(map.containsKey("type") && map.get("type").equals(Task.DOC_TYPE)) {
-                Task t = this.mTasksDatastore.deserializeDBObject(obj);
+                Task t = this.mTasksDatastore.deserializeDocumentRevision(obj);
                 tasks.add(t);
             }
         }
