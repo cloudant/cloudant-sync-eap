@@ -5,7 +5,7 @@ Early Access Program repository for Cloudant Sync.
 For details on how to get started with the library, see
 http://cloudant.github.io/cloudant-sync-eap.
 
-There is a [sample project](sample/todo-sync/README.md).
+There is a [sample project](sample/todo-sync/).
 
 ## Contributors
 
