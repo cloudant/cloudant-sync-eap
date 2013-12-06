@@ -105,7 +105,8 @@ public class TodoActivity
 
     private void createNewTask(String desc) {
         Task t = new Task(desc);
-        mTaskAdapter.add(sTasks.createDocument(t));
+        sTasks.createDocument(t);
+        reloadTasksFromModel();
     }
 
     private void toggleTaskCompleteAt(int position) {
