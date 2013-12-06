@@ -4,17 +4,36 @@ layout: default
 
 # Cloudant Sync - Early Access Program
 
+**Applications use Cloudant Sync to store, index and query local data on a
+device and to synchronise data between many devices. Synchronisation is under
+the control of the application, rather than being controlled by the underlying
+system. Conflicts are also easy to manage and resolve, either on the local
+device or in the remote database.**
+
 [Cloudant Sync][eap] is an [Apache CouchDB&trade;][acdb]
 replication-protocol-compatible datastore for
 devices that don't want or need to run a full CouchDB instance. It's built
 by [Cloudant](https://cloudant.com), building on the work of many others, and
 is available under the [Apache 2.0 licence][ap2].
 
+It is currently available in preview form on Android, with an iOS version
+coming soon.
+
 [ap2]: https://github.com/cloudant/cloudant-sync-eap/blob/master/LICENSE
 [eap]: https://github.com/cloudant/cloudant-sync-eap
 [acdb]: http://couchdb.apache.org/
 
-## EAP - version 1.0
+## EAP Program
+
+The purpose of the EAP program is to let developers play with the library and
+influence its development --- requesting features, suggesting API changes or
+asking why things are as they are.
+
+Cloudant Sync is currently in an early preview release, meaning some features
+are not yet implemented. The API for implemented features is also subject to
+change. But you can obviously influence how this happens!
+
+### Current Status
 
 The first part of the EAP is a basic datastore and replication engine for
 Android. The datastore implements a native-code friendly API.
@@ -30,9 +49,12 @@ The library currently supports:
 * Replication of data between a datastore managed by the library and remote
   Cloudant or CouchDB databases.
 
-We currently do not support, but plan to add support for:
+The next functionality we'll add is:
 
 * Managing conflicted documents.
+
+We currently do not support, but plan to add support for:
+
 * Documents with attachments.
 * Indexing and query support. For now only retrieving documents by ID is
   supported.
@@ -57,9 +79,19 @@ a dependency via [maven][maven] or [gradle][gradle].
 [maven]: http://maven.apache.org/
 [gradle]: http://www.gradle.org/
 
+There are currently two jar files for the datastore:
+
+* `cloudant-sync-datastore-android` contains the main datastore.
+* `mazha` contains a simple CouchDB client.
+
+We will be rolling `mazha` into `cloudant-sync-datastore-android` as `mazha`
+only contains the functionality to support HTTP requests made for replication
+and isn't intended to be used as a separate package.
+
 ### Gradle
 
-Add the EAP maven repo and a compile time dependency:
+Add the EAP maven repo and a compile time dependency on the datastore and
+mazha jars:
 
 ```groovy
 repositories {
@@ -70,15 +102,18 @@ repositories {
 
 dependencies {
     // Other dependencies
-    compile group: 'com.cloudant', name: 'cloudant-sync-datastore-android', version:'0.1-SNAPSHOT'
+    compile group: 'com.cloudant', name: 'cloudant-sync-datastore-android', version:'0.1.0'
+    compile group: 'com.cloudant', name: 'mazha', version:'0.1.1'
 }
 ```
 
+You can see a fuller example in the sample application's [build.gradle][sabg].
+
+[sabg]: https://github.com/cloudant/cloudant-sync-eap/blob/master/sample/todo-sync/build.gradle
+
 ### Maven
 
-_Note: syntax untested at time of writing._
-
-It's a similar story in maven, add the repo and the dependency:
+It's a similar story in maven, add the repo and the dependencies:
 
 ```xml
 <project>
@@ -98,7 +133,13 @@ It's a similar story in maven, add the repo and the dependency:
     <dependency>
       <groupId>com.cloudant</groupId>
       <artifactId>cloudant-sync-datastore-android</artifactId>
-      <version>0.1-SNAPSHOT</version>
+      <version>0.1.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.cloudant</groupId>
+      <artifactId>mazha</artifactId>
+      <version>0.1.1</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>
@@ -106,7 +147,7 @@ It's a similar story in maven, add the repo and the dependency:
 </project>
 ```
 
-## Developer Guide
+## Storing and Manipulating Local Data
 
 Once you have the dependencies installed, the classes described below should
 all be available to your project.
@@ -166,14 +207,14 @@ delete documents.
 Datastore ds = manager.openDatastore("my_datastore");
 
 // Create a document
-DBBody body = new BasicDBBody(jsonData);
-DBObject revision = ds.createDocument(body);
+DocumentBody body = new BasicDBBody(jsonData);
+DocumentRevision revision = ds.createDocument(body);
 
 // Read a document
-DBObject aRevision = ds.getDocument(revision.getId());
+DocumentRevision aRevision = ds.getDocument(revision.getId());
 
 // Update a document
-DBBody updatedBody = new BasicDBBody(moreJsonData);
+DocumentBody updatedBody = new BasicDBBody(moreJsonData);
 updatedRevision = ds.updateDocument(
     revision.getId(),
     revision.getRevision(),
@@ -187,18 +228,47 @@ ds.deleteDocument(
 );
 ```
 
+As can be seen above, the `updateDocument` and `deleteDocument` methods both
+require the revision of the version of the document currently in the datastore
+to be passed as an argument. This is to prevent data being overwritten, for
+example if a replication had changed the document since it had been read from
+the local datastore by the applicaiton.
+
 The `getAllDocuments()` method allows iterating through all documents in the
 database:
 
 ```java
 // read all documents in one go
 int pageSize = ds.getDocumentCount();
-List<DBObject> docs = ds.getAllDocuments(0, pageSize, true);
+List<DocumentRevision> docs = ds.getAllDocuments(0, pageSize, true);
 ```
 
-### Replication
+## Replicating Data Between Many Devices
 
-Replication is straightforward. You can replicate from a
+Replication is used to synchronise data between the local datastore and a
+remote database, either a CouchDB instance or a Cloudant database. Many
+datastores can replicate with the same remote database, meaning that
+cross-device syncronisation is acheived by setting up replications from each
+device the the remote database.
+
+### Setting Up For Sync
+
+Currently, the replication process requires a remote database to exist already.
+To avoid exposing credentials for the remote system on each device, we recommend
+creating a web service to authenticate users and set up databases for client
+devices. This web service needs to:
+
+* Handle sign in/sign up for users.
+* Create a new remote database for a new user.
+* Grant access to the new database for the new device (e.g., via [API keys][keys]
+  on Cloudant or the `_users` database in CouchDB).
+* Return the database URL and credentials to the device.
+
+[keys]: https://cloudant.com/for-developers/faq/auth/
+
+### Replication on the Device
+
+From the device side, replication is straightforward. You can replicate from a
 local datastore to a remote database, from a remote database to a local
 datastore, or both ways to implement synchronisation.
 
@@ -341,7 +411,7 @@ node to return in an arbitrary but deterministic way, which means that all
 replicas of the database will return the same revision for the document. The
 other copies of the document are still there, however, waiting to be merged.
 
-See more information on document trees in the [javadocs][jd] for `DBObjectTree`.
+See more information on document trees in the [javadocs][jd] for `DocumentRevisionTree`.
 
 [jd]: docs/
 
