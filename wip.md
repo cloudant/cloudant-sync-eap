@@ -4,7 +4,7 @@ layout: default
 
 # Cloudant Sync - Early Access Program
 
-**Applications use Cloudant Sync to store, index and query local data on a
+**Applications use Cloudant Sync to store, index and query local JSON data on a
 device and to synchronise data between many devices. Synchronisation is under
 the control of the application, rather than being controlled by the underlying
 system. Conflicts are also easy to manage and resolve, either on the local
