@@ -207,6 +207,7 @@ delete documents.
 Datastore ds = manager.openDatastore("my_datastore");
 
 // Create a document
+// jsonData is either a Map or a byte[] containing JSON.
 DocumentBody body = new BasicDBBody(jsonData);
 DocumentRevision revision = ds.createDocument(body);
 
