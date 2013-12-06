@@ -11,9 +11,16 @@ body {
     margin-right: auto;
 }
 
+.logo {
+    display: block;
+    float: right;
+    margin-top: -40px;
+    margin-right: 20px;
+}
+
 .main-body {
     padding: 0 20px;
-    margin-top: 50px;
+    margin-top: 60px;
 
     border-radius: 10px;
 
