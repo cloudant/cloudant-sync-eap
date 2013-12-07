@@ -175,7 +175,7 @@ import com.cloudant.sync.datastore.Datastore;
 
 // Create a DatastoreManager using application internal storage path
 File path = getApplicationContext().getDir("datastores");
-DatastoreManager helper = new DatastoreManager(path.getAbsolutePath());
+DatastoreManager manager = new DatastoreManager(path.getAbsolutePath());
 ```
 
 Once you've a manager set up, it's straightforward to create datastores:
