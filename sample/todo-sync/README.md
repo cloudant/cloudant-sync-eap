@@ -2,7 +2,11 @@
 
 The _todo-sync_ application shows how to do basic CRUD with the Sync Datastore and how to set up a replication between a remote Cloudant database and an application.
 
-## Preparation
+## Full Setup Guide
+
+There's a full setup guide on the EAP website: http://cloudant.github.io/cloudant-sync-eap/android-qs.html
+
+## In Brief
 
 Create a database on your Cloudant account for the app to synchronise with. It's best-practice to use API keys for device access rather than your Cloudant credentials, so when the database is created, use the Permissions tab to create an API key with:
 
