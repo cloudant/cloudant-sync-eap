@@ -132,7 +132,6 @@ Sync in action!
 ![Push, pull menu screenshot](images/quickstart/image05.png)
 
 For more in-depth information about the Sync Library please read this. Enjoy!
-Please contact us at [sync-eap@cloudant.com](mailto:sync-eap@cloudant.com) for any questions or concerns.
 
 ## Problems
 
