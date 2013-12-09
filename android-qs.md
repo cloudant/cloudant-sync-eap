@@ -3,6 +3,13 @@ layout: default
 ---
 
 # Cloudant Sync - Android Quickstart
+
+<p class="nav">
+<a href="index.html">Home</a> |
+<a href="https://github.com/cloudant/cloudant-sync-eap">EAP GitHub Repository</a> |
+<a href="android-qs.html">Android Sample App Quickstart</a>
+</p>
+
 ## Setup
 First off, download [Android Studio][studio]. You'll use this as your IDE and build manager.
 
@@ -115,7 +122,7 @@ Click 'New' to create a task by entering a description.  Once a task is complete
 Once you've replicated to the Cloudant database, log into your Cloudant account and check the todos have appeared as documents there. Try out pull replication by creating a new document in the sample app database:
 
 ![Push, pull menu screenshot](images/quickstart/image00.png)
- 
+
 Then go back into the app and click "Download (Pull)" to replicate the new task down to the app:
 
 ![Push, pull menu screenshot](images/quickstart/image03.png)
@@ -131,7 +138,7 @@ Please contact us at [sync-eap@cloudant.com](mailto:sync-eap@cloudant.com) for a
 
 **Problem**:  Android Studio reports a missing dependency, or that it can't find a required jar file.
 
-**Answer**:  First try calling gradle from the command like with the `--refresh-dependencies` option, `gradle build --refresh-dependencies` (see section 50.9.2.2 [here][gradledeps]). 
+**Answer**:  First try calling gradle from the command like with the `--refresh-dependencies` option, `gradle build --refresh-dependencies` (see section 50.9.2.2 [here][gradledeps]).
 
 [gradledeps]: http://www.gradle.org/docs/current/userguide/dependency_management.html
 

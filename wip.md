@@ -4,6 +4,13 @@ layout: default
 
 # Cloudant Sync - Early Access Program
 
+<p class="nav">
+<a href="index.html">Home</a> |
+<a href="https://github.com/cloudant/cloudant-sync-eap">EAP GitHub Repository</a> |
+<a href="android-qs.html">Android Sample App Quickstart</a>
+</p>
+
+
 **Applications use Cloudant Sync to store, index and query local JSON data on a
 device and to synchronise data between many devices. Synchronisation is under
 the control of the application, rather than being controlled by the underlying

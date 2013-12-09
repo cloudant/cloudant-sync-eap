@@ -19,6 +19,12 @@ body {
     border: 0;
 }
 
+.nav {
+    border-bottom: 1px solid #888;
+    border-top: 1px solid #888;
+    padding: 10px 0;
+}
+
 .main-body {
     padding: 0 20px;
     margin-top: 60px;
@@ -42,7 +48,6 @@ p {
 h1 {
     font-weight: bold;
     font-size: 24px;
-    border-bottom: 1px solid #888;
 }
 
 h2 {
