@@ -66,6 +66,9 @@ We currently do not support, but plan to add support for:
 * Indexing and query support. For now only retrieving documents by ID is
   supported.
 
+We are also actively working on an iOS version of the library, and will
+update this page as we add features and release this.
+
 ## Support
 
 There is a [getting started][eap] guide. The javadocs for the Android library
