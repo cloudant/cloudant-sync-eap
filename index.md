@@ -44,7 +44,7 @@ change. But you can obviously influence how this happens!
 
 The first part of the EAP is a basic datastore and replication engine for
 Android. The datastore implements a native-code friendly API.
-This API is differs from CouchDB's: we retain the
+This API differs from CouchDB's: we retain the
 [MVCC](http://en.wikipedia.org/wiki/Multiversion_concurrency_control)
 data model but not the HTTP-centric API.
 
