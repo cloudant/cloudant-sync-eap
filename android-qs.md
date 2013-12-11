@@ -39,7 +39,7 @@ You'll need [git][git] to download the sample app. For OS X, we suggest installi
 Now we'll clone the demo app. Wherever you put Android code on your computer, go there, and do this:
 
 ```bash
-$ git clone git@github.com:cloudant/cloudant-sync-eap.git
+$ git clone https://github.com/cloudant/cloudant-sync-eap.git
 $ cd cloudant-sync-eap
 ```
 
