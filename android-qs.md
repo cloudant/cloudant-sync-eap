@@ -15,7 +15,7 @@ First off, download [Android Studio][studio]. You'll use this as your IDE and bu
 
 [studio]: http://developer.android.com/sdk/installing/studio.html
 
-Although Android Studio comes bundled with a version of Android and the build tool [Gradle](gradle), the Cloudant EAP demo requires a Gradle version greater than 1.8 and an Android SDK version greater than Rev. 19. In the following example we will be demonstrating how to setup on Mac OS X.
+Although Android Studio comes bundled with a version of Android and the build tool [Gradle](gradle), the Cloudant EAP demo requires Gradle version 1.8 or higher and an Android SDK version greater than Rev. 19. In the following example we will be demonstrating how to setup on Mac OS X.
 
 [gradle]: http://www.gradle.org/
 
