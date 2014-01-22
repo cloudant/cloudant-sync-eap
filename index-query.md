@@ -1,73 +1,149 @@
-## Index and Query
+## Finding documents within Cloudant Sync
 
-Cloudant Sync provides simple way to index and query your documents 
-in datastore.
+Cloudant Sync provides simple and powerful ways to index and query
+your documents, allowing your applications to make the most of the
+data they store.
 
-### Index
+For those familiar with Cloudant, these indexes are closer to Cloudant's
+Search feature than its Views feature. This is because they allow 
+you to define indexes and execute ad hoc queries across those indexes.
+It's important to note, however, that the indexing is _not_ based on
+Lucene so lacks powerful full text search (though we're looking into 
+that!).
 
-Index maps each document to a one of multiple index values. All the index 
-values must be the same type. The index value type is specified when an 
-index is created. 
+### Indexing
 
-The simplest index would be index document by one of its first level field. 
-For example: 
+A datastore can have several indexes defined on it. Each index stores
+a particular set of values for each document in the datastore and
+allows fast look up of document IDs by those values (via a query).
+
+The values that an index contains are specified by passing each document
+through an _indexing function_, which take a document and return an
+array of values. The returned array's values are indexed verbatim. Cloudant
+Sync provides a number of prebuilt indexing functions or you can 
+define your own, leading to powerful ways to index documents.
+
+An index is typed to aid in querying. Currently there are two types:
+
+- String, which allows queries for exactly matching values.
+- Integer, which allows queries for matching values and values within a range.
+
+#### Defining an index
+
+The `FieldIndexFunction` class allows indexing a document by a top-level
+field (those existing at the root of the JSON document).
+
+We'll use this document as our example:
 
 ```json
 {
     "firstname": "John",
     "lastname": "Doe", 
-    "age": "29"
+    "age": 29
 }
-
 ```
 
-we can create a index on field named "firstname", and then we can query 
-to get the document whose has "firstname" field as "John".
-
-```java
-// IndexManager manages all the indexes for give Datastore
-IndexManager indexManager = new IndexManager(datastore);
-Index default = indexManager.ensureIndexed("default", "firstname")
-```
-
-#### Delete Index
-
-```java
-Index default = indexManager.deleteIndex("default")
-```
-
-#### Update Index
-
-Let's say we want to change "default" index to use field "lastname". 
-There is no direct way to update an existing Index. But you can
-delete the old index, and create new one with the old name: 
-
-```java
-Index default = indexManager.deleteIndex("default");
-Index defaultNew = indexManager.ensureIndexed("default", "lastname");
-```
-
-### Query
-
-Index can be used to query documents. Here is an example:
+Indexes for a datastore are managed by the `IndexManager` class. This
+class allows creating, deleting and modifying indexes. You'd normally
+create a single IndexManager object for each datastore. The `IndexManager`
+class is also used for queries. It's simple to create:
 
 ```java
 IndexManager indexManager = new IndexManager(datastore);
-indexManager.updateAllIndexes();
-Map query = new QueryBuilder().index("firstname").equalTo("John").build();
-QueryResult result = indexManager.query(query);
 ```
 
-Query is described using a map, where the map key is the name of the index to 
-use: "firstname", and map value is the index value: "John".
+To create an index on the `firstname` field using the `FieldIndexFunction`,
+we define the index using:
 
-Query can use more than one indexes. 
+```java
+indexManager.ensureIndexed("default", "firstname");
+```
 
-### Index Function
+The `ensureIndexed` method indexes all existing documents in the datastore
+before returning, so for datastore with existing documents it may be 
+run on a background thread.
 
-Index uses `IndexFunction` to mape document to index value. Here is the
-`IndexFunction` used by the index we used in the example above. This 
-function is provided out of box.
+The `ensureIndexed` function must be run every time an `IndexManager` is
+created so that the manager object recognises that index. The indexes 
+themselves are persisted to disk and updated incrementally -- the 
+`IndexManager` just needs to be told about them at startup time.
+
+`ensureIndexed(String name, String field)` is a convienience method to
+create an index using a `FieldIndexFunction` on the defined field that
+is of type `IndexType.STRING`. A longer form is used for using your
+own indexing functions, see below.
+
+##### Deleting an Index
+
+To remove the index we just created, ask the manager object to delete
+the index:
+
+```java
+indexManager.deleteIndex("default")
+```
+
+##### Redefining an Index
+
+To redefine an index, you need to delete and recreate the index:
+
+```java
+// Before starting, "default" is a field index on "firstname"
+indexManager.deleteIndex("default");
+indexManager.ensureIndexed("default", "lastname");
+```
+
+### Querying
+
+Once one or more indexes have been created, you can query them using
+the `IndexManager` object. The process is:
+
+- Use a `QueryBuilder` object to construct a query `Map`.
+- Pass the query to `IndexManager#query(Map)`.
+
+Concretely:
+
+```java
+QueryBuilder query = new QueryBuilder();
+
+// add a query on the `default` index:
+query.index("default").equalTo("John");
+
+// Run the query
+QueryResult result = indexManager.query(query.build());
+```
+
+A query can use more than one indexes:
+
+```java
+QueryBuilder query = new QueryBuilder();
+
+query.index("default").equalTo("John");
+query.index("age").greaterThan(25);
+
+// Run the query
+QueryResult result = indexManager.query(query.build());
+```
+
+The query result can then be iterated over to retrieve the documents:
+
+```java
+for (DocumentRevision revision : result) {
+    // do something
+}
+```
+
+### Index Functions
+
+As noted above, an index uses an `IndexFunction` instance to map a
+document to the values that should be indexed for the document. The
+`IndexFunction` interface defines a single function:
+
+```java
+public List<Object> indexedValues(String indexName, Map map);
+```
+
+For example, the included `FieldIndexFunction` used earlier is
+defined as:
 
 ```java
 public class FieldIndexFunction implements IndexFunction<Object> {
@@ -89,35 +165,45 @@ public class FieldIndexFunction implements IndexFunction<Object> {
 }
 ```
 
-You can provide a custom `IndexFunction` when you create an index. Keep in 
-mind that index definition is not persistent, you have to add the indexes 
-every time the datastore is opened. But document index are persistent 
-and built incrementally. 
+The longer form of the `ensureIndexed` function allows you to provide
+your own index function:
 
-### One more example
+```java
+public void ensureIndexed(String indexName, IndexType type, IndexFunction indexFunction)
+            throws IndexExistsException
+```
 
-Here is another example, using `Index` to build collections, and 
-this will be a pretty common use case for Index. 
+For example, to use this long form to define the field index on `firstname`
+used earlier:
 
-Let's say you are building an app managing music, you will need a way to 
-get music for each album, or for particular artist etc. Without index, 
-you have to traverse all the songs to build these collections you self. 
-But with index, it is simple query. 
+```java
+FieldIndexFunction f = new FieldIndexFunction("firstname");
+indexManager.ensureIndexed("default", IndexType.STRING, f);
+```
 
-For example, assume all the songs are in format like this:
+As before, `ensureIndexed` must be called each time the `IndexManager` object
+is created, but of course the indexed values are persisted to disk, also
+as you'd expect.
+
+### Extended example
+
+This example uses Cloudant Sync's indexing function to display
+collection of documents, in this case songs from particular albums.
+
+Assume all the songs are in the following format:
 
 ```json
 {
     "name": "Life in Technicolor",
     "album": "Viva la Vida",
-    "artist": "coldplay"
+    "artist": "Coldplay"
     ....
 }
 
 {
     "name": "Viva la Vida",
     "album": "Viva la Vida",
-    "artist": "coldplay"
+    "artist": "Coldplay"
     ....
 }
 
@@ -125,31 +211,41 @@ For example, assume all the songs are in format like this:
 {
     "name": "Square One",
     "album": "X&Y",
-    "artist": "coldplay"
+    "artist": "Coldplay"
     ....
 }
 
 {
     "name": "What If",
     "album": "X&Y",
-    "artist": "coldplay"
+    "artist": "Coldplay"
     ....
 }
 
 ```
 
-Index can be built for "album" and "artist", and you can easliy get all the 
-songs in album "Viva la Vida" like this:
+First build the indexes on "album" and "artist" using the `FieldIndexFunction`:
+
 
 ```java
 IndexManager indexManager = new IndexManager(datastore);
 Index albumIdx = indexManager.ensureIndexed("album", "album")
 Index artistIdx = indexManager.ensureIndexed("artist", "artist")
+```
 
+Then you can get the songs from Viva la Vida:
+
+```java
 Map query = new QueryBuilder()
-    .index("artist").equalTo("coldplay")
-    .index("album").equaltTo("Viva la Vida")
+    .index("artist").equalTo("Coldplay")
+    .index("album").equalTo("Viva la Vida")
     .build();
 QueryResult result = indexManager.query(query);
-
+for (DocumentRevision revision : result) {
+    System.out.println(revision.asMap["name"]);
+}
 ```
+
+Note that `FieldIndexFunction` doesn't transform the values, so queries
+need to use the exact term and case (e.g., you can't use "coldplay" or
+"cold").
