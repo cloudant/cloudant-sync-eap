@@ -201,30 +201,30 @@ Assume all the songs are in the following format:
 {
     "name": "Life in Technicolor",
     "album": "Viva la Vida",
-    "artist": "Coldplay"
-    ....
+    "artist": "Coldplay",
+    ...
 }
 
 {
     "name": "Viva la Vida",
     "album": "Viva la Vida",
-    "artist": "Coldplay"
-    ....
+    "artist": "Coldplay",
+    ...
 }
 
 
 {
     "name": "Square One",
     "album": "X&Y",
-    "artist": "Coldplay"
-    ....
+    "artist": "Coldplay",
+    ...
 }
 
 {
     "name": "What If",
     "album": "X&Y",
-    "artist": "Coldplay"
-    ....
+    "artist": "Coldplay",
+    ...
 }
 
 ```
@@ -249,6 +249,10 @@ QueryResult result = indexManager.query(query);
 for (DocumentRevision revision : result) {
     System.out.println(revision.asMap["name"]);
 }
+
+// prints:
+//   Life in Technicolor
+//   Viva la Vida
 ```
 
 Note that `FieldIndexFunction` doesn't transform the values, so queries
