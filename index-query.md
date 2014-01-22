@@ -117,7 +117,7 @@ query.index("default").equalTo("John");
 QueryResult result = indexManager.query(query.build());
 ```
 
-A query can use more than one indexes:
+A query can use more than one index:
 
 ```java
 QueryBuilder query = new QueryBuilder();
