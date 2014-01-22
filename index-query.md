@@ -11,6 +11,11 @@ It's important to note, however, that the indexing is _not_ based on
 Lucene so lacks powerful full text search (though we're looking into 
 that!).
 
+Currently indexing and querying operate on full terms. That means that
+if you index "Cloudant Sync", your query must be on "Cloudant Sync", that
+is a precise match. We're working on improving this for free text
+search scenarios and wildcard matching.
+
 ### Indexing
 
 A datastore can have several indexes defined on it. Each index stores
