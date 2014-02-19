@@ -1,5 +1,3 @@
-com.cloudant.mazha
-com.cloudant.mazha.json
 com.cloudant.sync.datastore
 com.cloudant.sync.indexing
 com.cloudant.sync.notifications
