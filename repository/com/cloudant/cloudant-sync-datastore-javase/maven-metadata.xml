@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.cloudant</groupId>
+  <artifactId>cloudant-sync-datastore-javase</artifactId>
+  <version>0.4.0</version>
+  <versioning>
+    <versions>
+      <version>0.4.0</version>
+    </versions>
+    <lastUpdated>20140801104011</lastUpdated>
+  </versioning>
+</metadata>
