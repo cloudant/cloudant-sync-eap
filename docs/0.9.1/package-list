@@ -1,0 +1,5 @@
+com.cloudant.sync.datastore
+com.cloudant.sync.indexing
+com.cloudant.sync.notifications
+com.cloudant.sync.replication
+com.cloudant.sync.util
