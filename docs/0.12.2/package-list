@@ -1,0 +1,8 @@
+com.cloudant.http
+com.cloudant.sync.datastore
+com.cloudant.sync.datastore.encryption
+com.cloudant.sync.datastore.migrations
+com.cloudant.sync.notifications
+com.cloudant.sync.query
+com.cloudant.sync.replication
+com.cloudant.sync.util
